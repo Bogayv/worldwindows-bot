@@ -70,36 +70,48 @@ export default function GlobalHaberler() {
     try {
       const allFetchedNews = [];
       const fetchPromises = activeTag.urls.map(async (url) => {
+        // ÇOKLU TÜNEL SİSTEMİ: Bir tünel hata verirse diğeri denenecek
+        const primaryUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&api_key=oyncyf0mgh8v7e5lq9w5z9yqyv8u78moxg8p9r9j`;
+        
         try {
-          // PROXY TUNNEL: Güvenlik duvarını aşmak için AllOrigins tüneli eklendi
-          const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}&api_key=oyncyf0mgh8v7e5lq9w5z9yqyv8u78moxg8p9r9j`;
-          const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`);
-          const wrapper = await res.json();
-          const data = JSON.parse(wrapper.contents);
-          
-          if (data.status === "ok" && data.items) {
-            return data.items.map(item => ({
-              id: item.guid || item.link,
-              baslik: item.title,
-              ozet: item.description?.replace(/<[^>]*>?/gm, '').slice(0, 180) + "...",
-              detay: item.content?.replace(/<[^>]*>?/gm, '') || item.description?.replace(/<[^>]*>?/gm, ''),
-              kaynak: data.feed.title || "Global",
-              url: item.link,
-              img: item.enclosure?.link || item.thumbnail || `https://picsum.photos/seed/${encodeURIComponent(item.title.slice(0,5))}/800/450`,
-              tagLabel: activeTag.label,
-              tagId: activeTag.id,
-              timestamp: new Date(item.pubDate).getTime()
-            }));
-          }
-        } catch (e) { return []; }
+          // 1. Tünel (CORS Proxy)
+          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(primaryUrl)}`);
+          const data = await res.json();
+          if (data.status === "ok") return processItems(data);
+          throw new Error("Proxy 1 Fail");
+        } catch (e) {
+          try {
+            // 2. Tünel (Alternative Proxy)
+            const res = await fetch(primaryUrl);
+            const data = await res.json();
+            if (data.status === "ok") return processItems(data);
+          } catch (e2) { return []; }
+        }
       });
+
       const results = await Promise.all(fetchPromises);
       results.forEach(batch => { if(batch) allFetchedNews.push(...batch); });
+      
       setNewsPool(prev => {
         const combined = [...allFetchedNews, ...prev];
         return combined.filter((v, i, a) => a.findIndex(t => t.baslik === v.baslik) === i);
       });
     } catch (e) { console.error("Sync Error"); } finally { setLoading(false); }
+  }
+
+  function processItems(data) {
+    return data.items.map(item => ({
+      id: item.guid || item.link,
+      baslik: item.title,
+      ozet: item.description?.replace(/<[^>]*>?/gm, '').slice(0, 180) + "...",
+      detay: item.content?.replace(/<[^>]*>?/gm, '') || item.description?.replace(/<[^>]*>?/gm, ''),
+      kaynak: data.feed.title || "Global",
+      url: item.link,
+      img: item.enclosure?.link || item.thumbnail || `https://picsum.photos/seed/${encodeURIComponent(item.title.slice(0,5))}/800/450`,
+      tagLabel: activeTag.label,
+      tagId: activeTag.id,
+      timestamp: new Date(item.pubDate).getTime()
+    }));
   }
 
   const displayData = useMemo(() => {
@@ -144,19 +156,19 @@ export default function GlobalHaberler() {
             )}
             {modalType === 'about' && (
               <>
-                <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>HAKKIMIZDA</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>WorldWindows.network, küresel finans ve jeopolitik haberleri saniyeler içinde tarayan profesyonel bir haber terminalidir.</p>
+                <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>ABOUT</h2>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>WorldWindows.network is a professional real-time news terminal for global finance and geopolitics.</p>
               </>
             )}
             {modalType === 'privacy' && (
               <>
-                <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>GİZLİLİK</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>Reklam hizmetleri için çerezler (cookies) kullanılabilir.</p>
+                <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>PRIVACY</h2>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>We use cookies to enhance your experience and for ad services.</p>
               </>
             )}
             {modalType === 'contact' && (
               <>
-                <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>İLETİŞİM</h2>
+                <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>CONTACT</h2>
                 <h3 style={{ color: "#fff" }}>iletisim@worldwindows.network</h3>
               </>
             )}
@@ -185,7 +197,7 @@ export default function GlobalHaberler() {
 
       <main style={{ maxWidth: "1400px", margin: "0 auto" }}>
         {loading && newsPool.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "100px", color: "#c9a96e", letterSpacing: "3px" }}>TUNNELING GLOBAL FEEDS...</div>
+          <div style={{ textAlign: "center", padding: "100px", color: "#c9a96e", letterSpacing: "3px" }}>SCANNING GLOBAL CHANNELS...</div>
         ) : (
           <>
             <section style={{ padding: "30px 0" }}>
