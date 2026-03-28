@@ -143,7 +143,7 @@ export default function GlobalHaberler() {
             {modalType === 'about' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>HAKKIMIZDA</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>Dünya Penceresi, küresel finans, jeopolitik ve ekonomi haberlerini saniyeler içinde tarayan profesyonel bir haber terminalidir. Amacımız, karmaşık haber akışını tek bir ekranda, en saf ve hızlı haliyle sunmaktır. Kaynaklarımız arasında Reuters, FT, WSJ ve Bloomberg gibi dev medya kuruluşları yer almaktadır.</p>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>World Windows, küresel finans, jeopolitik ve ekonomi haberlerini saniyeler içinde tarayan profesyonel bir haber terminalidir. Amacımız, karmaşık haber akışını tek bir ekranda, en saf ve hızlı haliyle sunmaktır. Kaynaklarımız arasında Reuters, FT, WSJ ve Bloomberg gibi dev medya kuruluşları yer almaktadır.</p>
               </>
             )}
             {modalType === 'privacy' && (
@@ -156,7 +156,7 @@ export default function GlobalHaberler() {
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>İLETİŞİM</h2>
                 <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>Sorularınız, iş birlikleri veya reklam teklifleri için bize aşağıdaki e-posta adresi üzerinden ulaşabilirsiniz:</p>
-                <h3 style={{ color: "#fff" }}>iletisim@dunyapenceresi.com</h3>
+                <h3 style={{ color: "#fff" }}>iletisim@worldwindows.network</h3>
               </>
             )}
           </div>
@@ -165,7 +165,7 @@ export default function GlobalHaberler() {
 
       <header style={{ background: "#0d1424" }}>
         <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 32px 5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ fontFamily: "'Playfair Display'", fontSize: "32px", color: "#c9a96e", fontWeight: "900", margin: 0 }}>DÜNYA PENCERESİ</h1>
+          <h1 style={{ fontFamily: "'Playfair Display'", fontSize: "32px", color: "#c9a96e", fontWeight: "900", margin: 0 }}>WORLD WINDOWS</h1>
           <div style={{ display: "flex", gap: "20px", alignItems: "center" }} translate="no">
              <div style={{ fontSize: "12px", color: "#c9a96e", fontWeight: "bold" }}>SYNC: {timeLeft}s</div>
              <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} style={{ background: "#c9a96e", color: "#0d1424", border: "none", padding: "8px 20px", borderRadius: "4px", fontWeight: "900", cursor: "pointer", fontSize: "11px" }}>SYNC NOW</button>
@@ -210,13 +210,13 @@ export default function GlobalHaberler() {
       </main>
 
       <footer className="footer">
-        <div style={{ color: "#c9a96e", fontWeight: "900", marginBottom: "20px" }}>DÜNYA PENCERESİ</div>
+        <div style={{ color: "#c9a96e", fontWeight: "900", marginBottom: "20px" }}>WORLD WINDOWS</div>
         <div>
           <span className="footer-link" onClick={() => setModalType('about')}>HAKKIMIZDA</span>
           <span className="footer-link" onClick={() => setModalType('privacy')}>GİZLİLİK POLİTİKASI</span>
           <span className="footer-link" onClick={() => setModalType('contact')}>İLETİŞİM</span>
         </div>
-        <div style={{ color: "#3a5278", fontSize: "10px", marginTop: "30px" }}>© 2026 Dunya Penceresi Terminal. All Rights Reserved.</div>
+        <div style={{ color: "#3a5278", fontSize: "10px", marginTop: "30px" }}>© 2026 World Windows Terminal. All Rights Reserved.</div>
       </footer>
     </div>
   );
