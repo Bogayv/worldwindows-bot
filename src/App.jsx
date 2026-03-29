@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
-import { Analytics } from "@vercelanalytics/react";
+import { Analytics } from "@vercel/analytics/react";
 
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: [] },
@@ -93,24 +93,32 @@ export default function GlobalHaberler() {
   useEffect(() => {
     document.title = "WORLD WINDOWS";
     
-    const cleaner = () => {
-      // BANT VE BALONCUKLARI SIFIRLA
-      const badSelectors = [
+    const observer = new MutationObserver(() => {
+      // SADECE GOOGLE'IN BANDINI VE BALONCUKLARINI HEDEF AL, BIZIM KUTUYA DOKUNMA
+      const targets = [
         '.goog-te-balloon-frame', '.goog-te-balloon-wrapper', 
         '.goog-te-menu-frame', '.goog-tooltip', '#goog-gt-tt', 
         '.goog-te-spinner-pos', '.goog-te-banner-frame', 
         'iframe.goog-te-banner-frame', '.goog-te-banner'
       ];
-      badSelectors.forEach(s => document.querySelectorAll(s).forEach(el => {
-        el.style.display = "none"; el.style.opacity = "0"; el.style.height = "0";
-      }));
+      
+      targets.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => el.remove());
+      });
 
-      // SAYFA KAYMASINI SIFIRLA
+      // Google'ın eklediği kaymaları sıfırla
       document.body.style.setProperty("top", "0px", "important");
       document.documentElement.style.setProperty("margin-top", "0px", "important");
-    };
 
-    const observer = new MutationObserver(cleaner);
+      // Google Translate metnini kısalt
+      const gadget = document.querySelector('.goog-te-gadget');
+      if (gadget) {
+        const textNode = Array.from(gadget.childNodes).find(n => n.nodeType === 3);
+        if (textNode && textNode.textContent.includes('tarafından')) {
+          textNode.textContent = ' Google Translate';
+        }
+      }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 
     const initTranslate = () => {
@@ -126,13 +134,13 @@ export default function GlobalHaberler() {
         const script = document.createElement("script");
         script.id = 'google-translate-script';
         script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-        script.async = true; document.body.appendChild(script);
+        script.async = true; 
+        document.body.appendChild(script);
       }
     };
     initTranslate();
 
     const styleInterval = setInterval(() => {
-      cleaner();
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
         if (combo.options && combo.options.length > 0) {
@@ -149,15 +157,10 @@ export default function GlobalHaberler() {
             combo.options[0].textContent = "LANG";
           }
         }
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; appearance: none !important; display: block !important; opacity: 1 !important;";
-      }
-      const gadget = document.querySelector('.goog-te-gadget');
-      if (gadget) {
-        gadget.style.cssText = "color: #4a6080 !important; font-size: 10px !important; font-weight: bold !important;";
-        const textNode = Array.from(gadget.childNodes).find(n => n.nodeType === 3);
-        if (textNode && textNode.textContent.includes('tarafından')) textNode.textContent = ' Google Translate';
-      }
-    }, 150);
+        // BURASI KRITIK: ALTIN SARISI KUTUNUN GÖRÜNÜR OLMASINI GARANTI ET
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; display: block !important; opacity: 1 !important; visibility: visible !important;";
+      } else { initTranslate(); }
+    }, 200);
 
     return () => { clearInterval(styleInterval); observer.disconnect(); };
   }, []);
@@ -226,16 +229,17 @@ export default function GlobalHaberler() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
         
-        /* BANT VE BALONCUKLARI SIFIRLA AMA ALTIN KUTUYU KORU */
-        iframe.goog-te-banner-frame, .goog-te-banner-frame, .goog-te-banner, .goog-tooltip, #goog-gt-tt, .goog-te-balloon-frame { 
-           display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important;
+        /* BANNER VE BALONCUKLARI IMHA ET AMA BIZIM ELEMENTLERI KORU */
+        .goog-te-balloon-frame, .goog-te-balloon-wrapper, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt, .goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-banner { 
+           display: none !important; visibility: hidden !important; pointer-events: none !important; 
         }
         
         html, body { 
-          top: 0px !important; margin-top: 0px !important; position: static !important; background-color: #080c14 !important; 
+          top: 0px !important; 
+          margin-top: 0px !important; 
+          background-color: #080c14 !important; 
         }
-
-        /* YAZI ETKILEŞIM YASAĞI */
+        
         h1, h2, h3, h4, p, span, font { pointer-events: none !important; user-select: none !important; }
         .news-card, .archive-card, .tag-pill, button, a, .close-btn, .footer-link, #google_translate_element, .goog-te-combo { pointer-events: auto !important; }
 
@@ -288,8 +292,7 @@ export default function GlobalHaberler() {
              <div><h1 className="header-title">WORLD WINDOWS</h1><div className="fiyakali-slogan">Global news to understand the world</div></div>
           </div>
           <div className="header-right-panel" translate="no" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-             {/* BIZIM KORUNAN KUTUMUZ */}
-             <div id="google_translate_element" style={{ position: "relative", zIndex: 10001, display: "block !important" }}></div>
+             <div id="google_translate_element" style={{ position: "relative", zIndex: 10001 }}></div>
              <div style={{ fontSize: "11px", color: "#c9a96e", fontWeight: "bold" }}>SYNC: {timeLeft}s</div>
              <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} style={{ background: "#c9a96e", border: "none", padding: "0 12px", height: "30px", borderRadius: "4px", fontWeight: "900", cursor: "pointer", fontSize: "10px", pointerEvents: "auto" }}>SYNC NOW</button>
           </div>
