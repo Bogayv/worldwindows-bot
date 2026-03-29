@@ -165,16 +165,18 @@ export default function GlobalHaberler() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
         
-        /* RADAR AKIŞ ANİMASYONU */
         @keyframes scrollRadar {
           0% { transform: translate3d(0, 0, 0); }
           100% { transform: translate3d(calc(-444px * 8), 0, 0); }
         }
         .radar-wrapper { overflow: hidden; width: 100vw; position: relative; padding: 20px 0 40px; }
+        
+        /* KRİTİK DÜZELTME BURADA: flex-wrap: nowrap ve display: flex !important */
         .radar-inner { 
-          display: flex; 
+          display: flex !important; 
+          flex-wrap: nowrap !important;
           gap: 24px; 
-          width: max-content; 
+          width: max-content !important; 
           animation: scrollRadar 80s linear infinite; 
           will-change: transform;
         }
@@ -186,12 +188,13 @@ export default function GlobalHaberler() {
         .tag-pill.active { background: #c9a96e; border-color: #c9a96e; color: #0d1424; }
         
         .search-header-container { display: flex; align-items: center; gap: 20px; padding: 0 32px; margin-bottom: 15px; flex-wrap: wrap; }
-        .news-card { min-width: 420px; max-width: 420px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; position: relative; transition: 0.3s; }
+        
+        /* Kart genişliği sabitleniyor */
+        .news-card { min-width: 420px; max-width: 420px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; position: relative; transition: 0.3s; flex-shrink: 0; }
         .news-card:hover { border-color: #c9a96e; transform: translateY(-5px); }
         .news-card img { width: 100%; height: 240px; object-fit: cover; border-bottom: 3px solid #c9a96e; }
         
         .time-badge { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 5px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #c9a96e; border: 1px solid #c9a96e; z-index: 2; }
-        
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; padding: 0 32px 60px; }
         .archive-card { background: #0d1424; border: 1px solid #1e2d4a; border-radius: 10px; padding: 25px; border-left: 4px solid #1e2d4a; cursor: pointer; }
         
@@ -220,6 +223,8 @@ export default function GlobalHaberler() {
           .header-right-panel { width: 100%; justify-content: space-between; gap: 10px !important; }
           .search-header-container { flex-direction: column; align-items: flex-start; padding: 0 20px; gap: 15px; }
           .search-input-wrapper { width: 100%; }
+          
+          /* Mobilde de alt alta binmemesi için */
           .radar-inner { animation-duration: 40s; }
           .news-card { min-width: 85vw; max-width: 85vw; }
           @keyframes scrollRadar {
@@ -248,11 +253,6 @@ export default function GlobalHaberler() {
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>ABOUT US</h2>
                 <p style={{ lineHeight: "1.8", color: "#8a9ab0", fontSize: "14px" }}>World Windows is a professional news terminal that scans global finance, geopolitics, and economy news in seconds.</p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "20px" }}>
-                  {SOURCE_LINKS.map(s => (
-                    <a key={s.name} href={s.url} target="_blank" rel="noreferrer" style={{ color: s.color, textDecoration: "none", background: "#080c14", border: "1px solid #1e2d4a", padding: "8px 14px", borderRadius: "6px", fontSize: "12px" }}>{s.name}</a>
-                  ))}
-                </div>
               </>
             )}
             {modalType === 'contact' && (
