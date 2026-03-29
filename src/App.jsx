@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
 
+// GLOBAL MEDYA DEVLERİ VE KAYNAKLAR
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: ["http://feeds.bbci.co.uk/news/world/rss.xml", "https://www.theguardian.com/world/rss", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "https://www.reutersagency.com/feed/"]},
   { id: "ekonomi", label: "ECONOMY/FT", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
@@ -71,23 +72,49 @@ export default function GlobalHaberler() {
       const allFetchedNews = [];
       const fetchPromises = activeTag.urls.map(async (url) => {
         try {
-          // *** DEĞİŞEN TEK YER BURASI: VERCEL SUNUCUSU ÜZERİNDEN ÇEKİYORUZ ***
-          const res = await fetch(`/api/news?url=${encodeURIComponent(url)}`);
-          const data = await res.json();
-          if (data.status === "ok" && data.items) {
-            return data.items.map(item => ({
-              id: item.guid || item.link,
-              baslik: item.title,
-              ozet: item.description?.replace(/<[^>]*>?/gm, '').slice(0, 180) + "...",
-              detay: item.content?.replace(/<[^>]*>?/gm, '') || item.description?.replace(/<[^>]*>?/gm, ''),
-              kaynak: data.feed.title || "Global",
-              url: item.link,
-              img: item.enclosure?.link || item.thumbnail || `https://picsum.photos/seed/${encodeURIComponent(item.title.slice(0,5))}/800/450`,
+          const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+          if (!res.ok) return [];
+          const xmlText = await res.text();
+          
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+          const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 10);
+          const feedTitle = xmlDoc.querySelector("channel > title")?.textContent || "Global";
+
+          return items.map(item => {
+            const title = item.querySelector("title")?.textContent || "News";
+            const link = item.querySelector("link")?.textContent || "#";
+            const desc = item.querySelector("description")?.textContent || "";
+            const cleanDesc = desc.replace(/<[^>]*>?/gm, '');
+
+            let imgUrl = `https://picsum.photos/seed/${encodeURIComponent(title.slice(0,5))}/800/450`;
+            const enclosure = item.querySelector("enclosure");
+            if (enclosure?.getAttribute("url")) imgUrl = enclosure.getAttribute("url");
+            else {
+              const mediaContent = item.getElementsByTagNameNS("*", "content");
+              if (mediaContent.length > 0 && mediaContent[0].getAttribute("url")) imgUrl = mediaContent[0].getAttribute("url");
+              else {
+                const mediaThumb = item.getElementsByTagNameNS("*", "thumbnail");
+                if (mediaThumb.length > 0 && mediaThumb[0].getAttribute("url")) imgUrl = mediaThumb[0].getAttribute("url");
+              }
+            }
+
+            const pubDate = item.querySelector("pubDate")?.textContent;
+            const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
+
+            return {
+              id: item.querySelector("guid")?.textContent || link,
+              baslik: title,
+              ozet: cleanDesc.slice(0, 180) + "...",
+              detay: cleanDesc,
+              kaynak: feedTitle.replace(/ - BBC News| \| World \| The Guardian/gi, ''),
+              url: link,
+              img: imgUrl,
               tagLabel: activeTag.label,
               tagId: activeTag.id,
-              timestamp: new Date(item.pubDate).getTime()
-            }));
-          }
+              timestamp: isNaN(timestamp) ? Date.now() : timestamp
+            };
+          });
         } catch (e) { return []; }
       });
       const results = await Promise.all(fetchPromises);
@@ -113,7 +140,8 @@ export default function GlobalHaberler() {
         .tag-pill { padding: 6px 16px; background: #080c14; border: 1px solid #1e2d4a; border-radius: 4px; color: #4a6080; font-size: 10px; font-weight: 900; cursor: pointer; white-space: nowrap; transition: 0.2s; }
         .tag-pill.active { background: #c9a96e; border-color: #c9a96e; color: #0d1424; }
         .news-slider { display: flex; gap: 24px; overflow-x: auto; padding: 20px 32px 40px; }
-        .news-card { min-width: 420px; max-width: 420px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; position: relative; }
+        .news-card { min-width: 420px; max-width: 420px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; position: relative; transition: 0.3s; }
+        .news-card:hover { border-color: #c9a96e; transform: translateY(-5px); }
         .news-card img { width: 100%; height: 240px; object-fit: cover; border-bottom: 3px solid #c9a96e; }
         .time-badge { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 5px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #c9a96e; border: 1px solid #c9a96e; z-index: 2; }
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; padding: 0 32px 60px; }
@@ -126,6 +154,7 @@ export default function GlobalHaberler() {
         .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 850px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 40px; }
       `}</style>
 
+      {/* MODAL SYSTEM */}
       {modalType && (
         <div className="modal-overlay" onClick={() => setModalType(null)}>
           <button className="close-btn" onClick={() => setModalType(null)}>✕</button>
