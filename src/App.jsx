@@ -69,16 +69,15 @@ export default function GlobalHaberler() {
     script.async = true;
     document.body.appendChild(script);
 
-    // Sadece butonu güzelleştiriyoruz, sitenin pozisyonuyla inatlaşmayı bıraktık
+    // KISA "LANG" YAZISI VE TASARIM SABİTLEYİCİ
     const styleInterval = setInterval(() => {
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
         if (combo.options && combo.options.length > 0) {
-          if (combo.options[0].text !== 'LANGUAGE') {
-            combo.options[0].text = 'LANGUAGE';
+          if (combo.options[0].text !== 'LANG') {
+            combo.options[0].text = 'LANG';
           }
         }
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 15px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; outline: none !important;";
       }
       
       const gadget = document.querySelector('.goog-te-gadget');
@@ -169,8 +168,8 @@ export default function GlobalHaberler() {
   }, [newsPool, activeTag]);
 
   return (
-    // İŞTE BURAYA PADDING-TOP EKLENDİ (SİTEYİ 50PX AŞAĞI İNDİRİYOR)
-    <div style={{ paddingTop: "50px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
+    // PADDING 30PX'E DÜŞÜRÜLDÜ (3 SATIR)
+    <div style={{ paddingTop: "30px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:wght@400;700&display=swap');
         .tag-bar { display: flex; gap: 8px; overflow-x: auto; padding: 12px 32px; background: #0d1424; border-bottom: 1px solid #1e2d4a; position: sticky; top: 0; z-index: 100; }
@@ -190,10 +189,33 @@ export default function GlobalHaberler() {
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8,12,20,0.98); backdrop-filter: blur(15px); z-index: 10000; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 850px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 40px; }
         
-        /* Çeviri yapılan metnin üzerine gelince çıkan baloncukları gizle */
+        /* === BALONCUK VE BANT GİZLEME CSS === */
+        body { top: 0px !important; position: static !important; margin-top: 0px !important; }
+        iframe.goog-te-banner-frame { display: none !important; visibility: hidden !important; }
+        .goog-te-banner-frame { display: none !important; }
+        .goog-logo-link { display: none !important; }
         .goog-tooltip { display: none !important; }
         .goog-tooltip:hover { display: none !important; }
         .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+
+        /* === BUTON TASARIMLARI VE MOBİL DUYARLILIK === */
+        .header-title { font-family: 'Playfair Display'; font-size: 32px; color: #c9a96e; font-weight: 900; margin: 0; white-space: nowrap; }
+        .sync-text { font-size: 12px; color: #c9a96e; font-weight: bold; }
+        .action-btn { background: #c9a96e; color: #0d1424; border: none; padding: 0 20px; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px; height: 30px; display: flex; align-items: center; font-family: 'Source Sans 3', sans-serif; text-transform: uppercase; }
+        
+        .goog-te-combo { background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 15px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; outline: none !important; margin: 0 !important; }
+
+        /* TELEFON EKRANLARI İÇİN KÜÇÜLTME ADIMLARI */
+        @media (max-width: 768px) {
+          .header-title { font-size: 22px; }
+          .sync-text { font-size: 10px; }
+          .action-btn, .goog-te-combo {
+            padding: 0px 8px !important;
+            font-size: 9px !important;
+            height: 26px !important;
+          }
+          .header-right-panel { gap: 8px !important; }
+        }
       `}</style>
 
       {/* MODAL SYSTEM */}
@@ -235,13 +257,13 @@ export default function GlobalHaberler() {
 
       <header style={{ background: "#0d1424" }}>
         <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 32px 5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ fontFamily: "'Playfair Display'", fontSize: "32px", color: "#c9a96e", fontWeight: "900", margin: 0 }}>WORLD WINDOWS</h1>
-          <div style={{ display: "flex", gap: "15px", alignItems: "center" }} translate="no">
+          <h1 className="header-title">WORLD WINDOWS</h1>
+          <div className="header-right-panel" style={{ display: "flex", gap: "15px", alignItems: "center" }} translate="no">
              
              <div id="google_translate_element"></div>
 
-             <div style={{ fontSize: "12px", color: "#c9a96e", fontWeight: "bold" }}>SYNC: {timeLeft}s</div>
-             <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} style={{ background: "#c9a96e", color: "#0d1424", border: "none", padding: "0 20px", borderRadius: "4px", fontWeight: "900", cursor: "pointer", fontSize: "11px", height: "30px", display: "flex", alignItems: "center" }}>SYNC NOW</button>
+             <div className="sync-text">SYNC: {timeLeft}s</div>
+             <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} className="action-btn">SYNC NOW</button>
           </div>
         </div>
         <div className="tag-bar">
