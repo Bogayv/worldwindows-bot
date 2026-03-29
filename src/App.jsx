@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { Analytics } from "@vercel/analytics/react";
 
-// GLOBAL MEDYA DEVLERİ VE YENİ EKLENEN KAYNAKLAR
 const GLOBAL_TAGS = [
-  { id: "all", label: "ALL", urls: ["http://feeds.bbci.co.uk/news/world/rss.xml", "https://www.theguardian.com/world/rss", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "https://www.reutersagency.com/feed/"]},
+  { id: "all", label: "ALL", urls: [] }, // Alt tarafta tüm URL'leri otomatik toplayacak
   { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
   { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss"]},
   { id: "kripto", label: "CRYPTO", urls: ["https://cointelegraph.com/rss", "https://www.coindesk.com/arc/outboundfeeds/rss/"]},
   { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml"]},
-  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml", "https://rss.dw.com/rdf/rss-en-biz", "https://www.telegraph.co.uk/business/rss.xml"]},
+  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml", "https://rss.dw.com/rdf/rss-en-biz", "https://www.telegraph.co.uk/business/rss.xml", "http://feeds.bbci.co.uk/news/world/rss.xml", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "https://www.reutersagency.com/feed/"]},
   { id: "siyaset", label: "POLITICS", urls: ["https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss"]},
   { id: "gold", label: "GOLD/SILVER", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/news_95.rss"]},
   { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://finance.yahoo.com/news/rss", "https://www.bigpara.com/rss/"]},
   { id: "kap", label: "KAP & CORP", urls: ["https://www.kap.org.tr/tr/rss", "https://www.paraanaliz.com/feed/", "https://www.dunya.com/rss"]},
 ];
+
+// ALL SEKMESİ İÇİN TÜM URL'LERİ OTOMATİK BİRLEŞTİR
+const ALL_URLS = Array.from(new Set(GLOBAL_TAGS.flatMap(tag => tag.urls)));
 
 const SOURCE_LINKS = [
   { name: "BBC News", url: "https://www.bbc.com/news", color: "#EB3323", font: "sans-serif", weight: "900" },
@@ -115,7 +117,6 @@ export default function GlobalHaberler() {
         }
         combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 60px !important; outline: none !important; margin: 0 !important;";
       }
-      
       const gadget = document.querySelector('.goog-te-gadget');
       if(gadget) {
         gadget.style.cssText = "color: transparent !important; font-size: 0px !important; display: flex !important; align-items: center !important;";
@@ -141,7 +142,10 @@ export default function GlobalHaberler() {
     setLoading(true);
     try {
       const allFetchedNews = [];
-      const fetchPromises = activeTag.urls.map(async (url) => {
+      // EĞER ALL SEKMESİNDEYSEK TÜM LİSTEYİ, DEĞİLSEK SADECE O KATEGORİYİ ÇEK
+      const targetUrls = activeTag.id === "all" ? ALL_URLS : activeTag.urls;
+
+      const fetchPromises = targetUrls.map(async (url) => {
         try {
           const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
           if (!res.ok) return [];
@@ -149,17 +153,13 @@ export default function GlobalHaberler() {
           
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-          
-          // HEM RSS (item) HEM ATOM (entry) FORMATINI AYNI ANDA TARAYAN YENİ GÜÇLÜ RADAR
-          const items = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 15);
+          const items = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 10);
           const feedTitle = xmlDoc.querySelector("channel > title, feed > title")?.textContent || "Global";
 
           return items.map(item => {
             const title = item.querySelector("title")?.textContent || "News";
-            // Atom linkleri <link href="..."> şeklinde olabilir
             const linkElem = item.querySelector("link");
             const link = linkElem?.textContent || linkElem?.getAttribute("href") || "#";
-            
             const desc = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || item.querySelector("content")?.textContent || "";
             const cleanDesc = desc.replace(/<[^>]*>?/gm, '');
 
@@ -195,6 +195,7 @@ export default function GlobalHaberler() {
       });
       const results = await Promise.all(fetchPromises);
       results.forEach(batch => { if(batch) allFetchedNews.push(...batch); });
+      
       setNewsPool(prev => {
         const combined = [...allFetchedNews, ...prev];
         return combined.filter((v, i, a) => a.findIndex(t => t.baslik === v.baslik) === i);
@@ -203,6 +204,7 @@ export default function GlobalHaberler() {
   }
 
   const displayData = useMemo(() => {
+    // KONSOLİDASYON: ALL SEÇİLİYSE TÜM HAVUZU, DEĞİLSE SADECE İLGİLİ KATEGORİYİ FİLTRELE
     const filtered = activeTag.id === "all" ? newsPool : newsPool.filter(i => i.tagId === activeTag.id);
     const sorted = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
     return { radar: sorted.slice(0, 8), archive: sorted.slice(8, 500) };
@@ -245,7 +247,6 @@ export default function GlobalHaberler() {
         
         .sync-text { font-size: 12px; color: #c9a96e; font-weight: bold; }
         .action-btn { background: #c9a96e; color: #0d1424; border: none; padding: 0 20px; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px; height: 30px; display: flex; align-items: center; font-family: 'Source Sans 3', sans-serif; text-transform: uppercase; }
-        
         .goog-te-combo { background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 60px !important; outline: none !important; margin: 0 !important; }
 
         @media (max-width: 768px) {
@@ -265,7 +266,7 @@ export default function GlobalHaberler() {
             {modalType === 'news' && selectedNews && (
               <>
                 <img src={selectedNews.img} style={{ width: "calc(100% + 80px)", margin: "-40px -40px 20px", height: "350px", objectFit: "cover", borderBottom: "2px solid #c9a96e" }} />
-                <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "12px" }}>#{selectedNews.tagLabel} • {getRelativeTime(selectedNews.timestamp)}</div>
+                <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "12px" }}>{selectedNews.kaynak.toUpperCase()} • {getRelativeTime(selectedNews.timestamp)}</div>
                 <h2 style={{ fontFamily: "'Playfair Display'", fontSize: "32px", color: "#fff", margin: "15px 0" }}>{selectedNews.baslik}</h2>
                 <p style={{ color: "#8a9ab0", lineHeight: "1.8", fontSize: "18px" }}>{selectedNews.detay}</p>
                 <a href={selectedNews.url} target="_blank" rel="noreferrer" style={{ background: "#c9a96e", color: "#0d1424", padding: "12px 30px", textDecoration: "none", fontWeight: "bold", borderRadius: "4px", display: "inline-block", marginTop: "20px" }}>GO TO SOURCE ↗</a>
@@ -275,17 +276,10 @@ export default function GlobalHaberler() {
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>ABOUT US</h2>
                 <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>World Windows is a professional news terminal that scans global finance, geopolitics, and economy news in seconds. Our goal is to present the complex news flow on a single screen in its purest and fastest form.</p>
-                
                 <h3 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'", marginTop: "35px", borderBottom: "1px solid #1e2d4a", paddingBottom: "10px", fontSize: "18px" }}>INTEGRATED GLOBAL SOURCES</h3>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "20px" }}>
                   {SOURCE_LINKS.map(s => (
-                    <a key={s.name} href={s.url} target="_blank" rel="noreferrer" 
-                      style={{ color: s.color, fontFamily: s.font, fontWeight: s.weight || "normal", fontStyle: s.style || "normal", letterSpacing: s.letterSpacing || "normal", textDecoration: "none", background: "#080c14", border: "1px solid #1e2d4a", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", transition: "0.2s", display: "inline-block" }}
-                      onMouseOver={(e) => { e.target.style.borderColor = s.color; e.target.style.transform = "translateY(-2px)"; }}
-                      onMouseOut={(e) => { e.target.style.borderColor = "#1e2d4a"; e.target.style.transform = "translateY(0)"; }}
-                    >
-                      {s.name}
-                    </a>
+                    <a key={s.name} href={s.url} target="_blank" rel="noreferrer" style={{ color: s.color, fontFamily: s.font, fontWeight: s.weight || "normal", fontStyle: s.style || "normal", textDecoration: "none", background: "#080c14", border: "1px solid #1e2d4a", padding: "8px 14px", borderRadius: "6px", fontSize: "12px", transition: "0.2s", display: "inline-block" }}>{s.name}</a>
                   ))}
                 </div>
               </>
@@ -293,14 +287,13 @@ export default function GlobalHaberler() {
             {modalType === 'privacy' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>PRIVACY POLICY</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>The privacy of your user data is important to us. Our site uses cookies to enhance user experience and serve advertising. Third-party ad vendors (like Google AdSense) may use cookies to serve ads based on your interests. By using our site, you consent to this cookie usage.</p>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>The privacy of your user data is important to us. Our site uses cookies to enhance user experience and serve advertising.</p>
               </>
             )}
             {modalType === 'contact' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>CONTACT</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>For your questions, collaborations, or advertising proposals, you can reach us via the email address below:</p>
-                <h3 style={{ color: "#fff" }}>iletisim@worldwindows.network</h3>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>For your questions, collaborations, or advertising proposals: iletisim@worldwindows.network</p>
               </>
             )}
           </div>
@@ -309,18 +302,15 @@ export default function GlobalHaberler() {
 
       <header style={{ background: "#0d1424" }}>
         <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 32px 5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          
           <div className="header-left-panel">
             <h1 className="header-title">WORLD WINDOWS</h1>
             <div className="header-subtitle">Global news to understand the world</div>
           </div>
-
           <div className="header-right-panel" style={{ display: "flex", gap: "15px", alignItems: "center" }} translate="no">
              <div id="google_translate_element"></div>
              <div className="sync-text">SYNC: {timeLeft}s</div>
              <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} className="action-btn">SYNC NOW</button>
           </div>
-
         </div>
         <div className="tag-bar">
           {GLOBAL_TAGS.map(t => (
@@ -335,7 +325,6 @@ export default function GlobalHaberler() {
           <h2 style={{ fontSize: "20px", color: "#c9a96e", fontFamily: "'Playfair Display'", padding: "0 32px", marginBottom: "10px", letterSpacing: "0.5px" }}>
             {activeTag.id === "all" ? "ARE YOU READY TO DISCOVER THE WORLD..." : `LIVE RADAR: ${activeTag.label}`}
           </h2>
-          
           <div className="news-slider">
             {displayData.radar.map(n => (
               <div key={n.id} className="news-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
@@ -356,7 +345,7 @@ export default function GlobalHaberler() {
             {displayData.archive.map(n => (
               <div key={n.id} className="archive-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
                 <div style={{ fontSize: "10px", color: "#c9a96e", marginBottom: "8px", fontWeight: "900" }} translate="no">
-                  {n.kaynak.toUpperCase()} • #{n.tagLabel} • {getRelativeTime(n.timestamp)}
+                   {n.kaynak.toUpperCase()} • {getRelativeTime(n.timestamp)}
                 </div>
                 <h4 style={{ fontSize: "16px", color: "#e8e6e0", lineHeight: "1.4", margin: 0 }}>{n.baslik}</h4>
               </div>
