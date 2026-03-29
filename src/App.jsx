@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { Analytics } from "@vercel/analytics/react";
 
-// GLOBAL MEDYA DEVLERİ VE KAYNAKLAR
+// GLOBAL MEDYA DEVLERİ VE YENİ EKLENEN KAYNAKLAR
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: ["http://feeds.bbci.co.uk/news/world/rss.xml", "https://www.theguardian.com/world/rss", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "https://www.reutersagency.com/feed/"]},
-  { id: "ekonomi", label: "ECONOMY/FT", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
-  { id: "finans", label: "FINANCE/WSJ", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://www.ft.com/markets?format=rss"]},
-  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml", "https://www.independent.co.uk/news/world/rss"]},
+  { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
+  { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss"]},
+  { id: "kripto", label: "CRYPTO", urls: ["https://cointelegraph.com/rss", "https://www.coindesk.com/arc/outboundfeeds/rss/"]},
+  { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml"]},
+  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml", "https://rss.dw.com/rdf/rss-en-biz", "https://www.telegraph.co.uk/business/rss.xml"]},
   { id: "siyaset", label: "POLITICS", urls: ["https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss"]},
   { id: "gold", label: "GOLD/SILVER", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/news_95.rss"]},
-  { id: "fed", label: "FED", urls: ["https://www.cnbc.com/id/20910258/device/rss/rss.html"]},
-  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://www.bigpara.com/rss/"]},
-  { id: "kap", label: "CORP NEWS", urls: ["https://www.paraanaliz.com/feed/", "https://www.dunya.com/rss"]},
+  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://finance.yahoo.com/news/rss", "https://www.bigpara.com/rss/"]},
+  { id: "kap", label: "KAP & CORP", urls: ["https://www.kap.org.tr/tr/rss", "https://www.paraanaliz.com/feed/", "https://www.dunya.com/rss"]},
 ];
 
 const getRelativeTime = (ts) => {
@@ -55,7 +56,6 @@ export default function GlobalHaberler() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [modalType, setModalType] = useState(null);
 
-  // SİTENİN ANA DİLİNİ VE BAŞLIĞINI İNGİLİZCEYE SABİTLE (SEO VE CHROME İÇİN)
   useEffect(() => {
     document.documentElement.lang = "en";
     document.title = "WORLD WINDOWS | Global News to Understand the World";
