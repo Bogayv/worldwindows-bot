@@ -40,6 +40,14 @@ const SOURCE_LINKS = [
   { name: "Investing.com", url: "https://www.investing.com", color: "#F38B00" },
 ];
 
+const LANGUAGE_MAP = {
+  "Türkçe": "Turkish", "İngilizce": "English", "Almanca": "German", "Fransızca": "French",
+  "İspanyolca": "Spanish", "Arapça": "Arabic", "Çince": "Chinese", "Rusça": "Russian",
+  "Hintçe": "Hindi", "Japonca": "Japanese", "Korece": "Korean", "Tayca": "Thai",
+  "Kazakça": "Kazakh", "Azerice": "Azerbaijani", "Yunanca": "Greek", "Portekizce": "Portuguese",
+  "Çekçe": "Czech", "Danca": "Danish", "Felemenkçe": "Dutch"
+};
+
 const getRelativeTime = (ts) => {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
@@ -85,16 +93,18 @@ export default function GlobalHaberler() {
   useEffect(() => {
     document.title = "WORLD WINDOWS";
     
-    // GOOGLE BALONCUKLARINI VE BANNER'LARI SİLEN BEKÇİ
     const observer = new MutationObserver(() => {
-      const targets = ['.goog-te-balloon-frame', '.goog-te-balloon-wrapper', '.goog-te-menu-frame', '.goog-tooltip', '#goog-gt-tt', '.goog-te-spinner-pos', '.goog-te-banner-frame', 'iframe.goog-te-banner-frame'];
-      targets.forEach(selector => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => el.remove());
-      });
-      // Google'ın eklediği boşlukları temizle
-      if (document.body.style.top !== "0px") {
-        document.body.style.top = "0px";
+      const targets = ['.goog-te-balloon-frame', '.goog-te-balloon-wrapper', '.goog-te-menu-frame', '.goog-tooltip', '#goog-gt-tt', '.goog-te-spinner-pos', '.goog-te-banner-frame'];
+      targets.forEach(selector => document.querySelectorAll(selector).forEach(el => el.remove()));
+      if (document.body.style.top !== "0px") document.body.style.top = "0px";
+
+      // GOOGLE ÇEVİRİ YAZISINI DÜZELT
+      const gadgetText = document.querySelector('.goog-te-gadget');
+      if (gadgetText) {
+        const textNode = Array.from(gadgetText.childNodes).find(n => n.nodeType === 3);
+        if (textNode && textNode.textContent.includes('tarafından desteklenmektedir')) {
+          textNode.textContent = ' Google Translate';
+        }
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -103,10 +113,8 @@ export default function GlobalHaberler() {
       if (!window.googleTranslateElementInit) {
         window.googleTranslateElementInit = () => {
           new window.google.translate.TranslateElement({ 
-            // KRİTİK: autoPageLanguage: true yerine hibrit algılama için boş bırakıyoruz
             includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl', 
-            autoDisplay: false,
-            multilanguagePage: true // Sayfadaki hem TR hem EN haberleri aynı anda çevirir
+            autoDisplay: false, multilanguagePage: true 
           }, 'google_translate_element');
         };
       }
@@ -114,8 +122,7 @@ export default function GlobalHaberler() {
         const script = document.createElement("script");
         script.id = 'google-translate-script';
         script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-        script.async = true;
-        document.body.appendChild(script);
+        script.async = true; document.body.appendChild(script);
       }
     };
     initTranslate();
@@ -124,23 +131,25 @@ export default function GlobalHaberler() {
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
         if (combo.options && combo.options.length > 0) {
+          // DİL İSİMLERİNİ İNGİLİZCEYE ÇEVİR
+          Array.from(combo.options).forEach(opt => {
+            if (LANGUAGE_MAP[opt.textContent]) opt.textContent = LANGUAGE_MAP[opt.textContent];
+          });
           const hasEnglish = Array.from(combo.options).some(opt => opt.value === 'en');
           if (!hasEnglish) {
             const enOpt = document.createElement('option'); enOpt.value = 'en'; enOpt.textContent = 'English';
             combo.insertBefore(enOpt, combo.firstChild);
           }
-          // Default olarak boştaysa İngilizce seç ama kullanıcının seçimini bozma
-          if (combo.value === "" && !combo.dataset.manuallyChanged) {
-             combo.value = "en";
-             combo.dispatchEvent(new Event('change'));
-          }
+          if (combo.value === "") { combo.value = "en"; combo.dispatchEvent(new Event('change')); }
           if (combo.options[0] && (combo.options[0].value === "" || combo.options[0].textContent.includes('Select'))) {
             combo.options[0].textContent = "LANG";
           }
         }
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; appearance: none !important; -webkit-appearance: none !important;";
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; appearance: none !important;";
       } else { initTranslate(); }
-    }, 1000);
+      const gadget = document.querySelector('.goog-te-gadget');
+      if(gadget) { gadget.style.cssText = "color: #4a6080 !important; font-size: 10px !important; font-weight: bold !important; display: flex !important; align-items: center !important;"; }
+    }, 500);
 
     return () => { clearInterval(styleInterval); observer.disconnect(); };
   }, []);
@@ -168,14 +177,12 @@ export default function GlobalHaberler() {
           const items = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 15);
           const feedTitle = xmlDoc.querySelector("channel > title, feed > title")?.textContent || "Global";
           const feedOrigin = new URL(url).origin;
-
           return items.map(item => {
             const title = item.querySelector("title")?.textContent || "News";
             const linkElem = item.querySelector("link");
             let rawLink = (linkElem?.textContent || linkElem?.getAttribute("href") || "#").trim();
             if (rawLink.startsWith("/")) rawLink = feedOrigin + rawLink;
             if (rawLink.includes('bigpara.com')) rawLink = rawLink.replace('www.bigpara.com', 'bigpara.hurriyet.com.tr');
-            
             const newsId = btoa(unescape(encodeURIComponent(title.slice(0,50) + feedTitle)));
             if (!persistentTimeCache[newsId]) {
               persistentTimeCache[newsId] = Date.now();
@@ -210,23 +217,17 @@ export default function GlobalHaberler() {
     <div style={{ paddingTop: "40px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
-        
-        /* TUM ETKILEŞIMLER VE BALONCUKLAR ENGELLENDİ */
         .goog-te-balloon-frame, .goog-te-balloon-wrapper, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt, .goog-te-banner-frame, iframe.goog-te-banner-frame { 
            display: none !important; visibility: hidden !important; pointer-events: none !important; 
         }
-        
         body { top: 0px !important; position: static !important; }
-        
         h1, h2, h3, h4, p, span, font { 
            pointer-events: none !important; 
            user-select: none !important;
         }
-
         .news-card, .archive-card, .tag-pill, button, a, .close-btn, .footer-link, .goog-te-combo { 
            pointer-events: auto !important; 
         }
-
         .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
         .radar-container::-webkit-scrollbar { height: 4px; }
         .radar-container::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 10px; }
