@@ -90,30 +90,36 @@ export default function GlobalHaberler() {
     head.appendChild(link);
 
     window.googleTranslateElementInit = () => {
-      new window.google.translate.TranslateElement({ pageLanguage: 'en', includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl', autoDisplay: false }, 'google_translate_element');
+      new window.google.translate.TranslateElement({ 
+        pageLanguage: 'en', 
+        includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl', 
+        autoDisplay: false 
+      }, 'google_translate_element');
     };
     const script = document.createElement("script");
     script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
     script.async = true;
     document.body.appendChild(script);
 
-    // KESİN ÇÖZÜM: 100ms aralıklarla LANG kontrolü
     const styleInterval = setInterval(() => {
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
         if (combo.options && combo.options.length > 0) {
-          // English seçeneği yoksa ekle
           const hasEnglish = Array.from(combo.options).some(opt => opt.value === 'en');
           if (!hasEnglish) {
             const enOpt = document.createElement('option'); enOpt.value = 'en'; enOpt.textContent = 'English';
             combo.insertBefore(enOpt, combo.firstChild);
           }
-          // HER ZAMAN LANG YAZDIR
-          if (combo.options[0].textContent !== 'LANG') {
-            combo.options[0].textContent = 'LANG';
+          // SELECT LANGUAGE YAZISINI TAMAMEN SIL, VARSAYILAN OLARAK ENGLISH YAP
+          if (combo.value === "") {
+             combo.value = "en";
+             combo.dispatchEvent(new Event('change'));
+          }
+          // BOŞLUK VEYA İSİMSİZ YAPMA
+          if (combo.options[0].value === "") {
+            combo.options[0].textContent = "---";
           }
         }
-        // STİLİ HER ZAMAN KORU
         combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; appearance: none !important; -webkit-appearance: none !important;";
       }
       const gadget = document.querySelector('.goog-te-gadget');
