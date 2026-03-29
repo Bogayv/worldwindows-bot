@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
-import { Analytics } from "@vercelanalytics/react";
+import { Analytics } from "@vercel/analytics/react";
 
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: [] },
@@ -93,51 +93,42 @@ export default function GlobalHaberler() {
   useEffect(() => {
     document.title = "WORLD WINDOWS";
     
-    const hardCleanup = () => {
-      // BANT VE BALONCUKLARI GÖRÜNMEZ YAP VE YÜKSEKLİĞİ SIFIRLA
-      const badSelectors = [
-        '.goog-te-balloon-frame', '.goog-te-balloon-wrapper', 
-        '.goog-te-menu-frame', '.goog-tooltip', '#goog-gt-tt', 
-        '.goog-te-spinner-pos', '.goog-te-banner-frame', 
-        'iframe.goog-te-banner-frame', '.goog-te-banner', '.skiptranslate'
-      ];
+    const silentCleanup = () => {
+      // GOOGLE BANTLARINI SIFIRLA
+      const badSelectors = ['.goog-te-banner-frame', '.goog-te-banner', 'iframe.goog-te-banner-frame', '.goog-tooltip', '#goog-gt-tt', '.goog-te-balloon-frame'];
       badSelectors.forEach(s => {
         document.querySelectorAll(s).forEach(el => {
           el.style.setProperty("display", "none", "important");
-          el.style.setProperty("visibility", "hidden", "important");
           el.style.setProperty("height", "0px", "important");
-          el.style.setProperty("opacity", "0", "important");
+          el.style.setProperty("visibility", "hidden", "important");
         });
       });
-
-      // SAYFA KAYMASINI BETONA GÖM
+      // SAYFA KAYMASINI SIFIRLA
       document.body.style.setProperty("top", "0px", "important");
       document.documentElement.style.setProperty("margin-top", "0px", "important");
     };
 
-    const observer = new MutationObserver(hardCleanup);
+    const observer = new MutationObserver(silentCleanup);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    const initTranslate = () => {
-      if (!window.googleTranslateElementInit) {
-        window.googleTranslateElementInit = () => {
-          new window.google.translate.TranslateElement({ 
-            includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl', 
-            autoDisplay: false, multilanguagePage: true 
-          }, 'google_translate_element');
-        };
-      }
-      if (!document.getElementById('google-translate-script')) {
-        const script = document.createElement("script");
-        script.id = 'google-translate-script';
-        script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-        script.async = true; document.body.appendChild(script);
-      }
+    window.googleTranslateElementInit = () => {
+      new window.google.translate.TranslateElement({ 
+        pageLanguage: 'en', // Sayfayı İngilizce kabul et, böylece bant çıkmaz
+        includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl', 
+        autoDisplay: false, 
+        multilanguagePage: true 
+      }, 'google_translate_element');
     };
-    initTranslate();
+
+    if (!document.getElementById('google-translate-script')) {
+      const script = document.createElement("script");
+      script.id = 'google-translate-script';
+      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      script.async = true; document.body.appendChild(script);
+    }
 
     const styleInterval = setInterval(() => {
-      hardCleanup();
+      silentCleanup();
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
         if (combo.options && combo.options.length > 0) {
@@ -154,16 +145,9 @@ export default function GlobalHaberler() {
             combo.options[0].textContent = "LANG";
           }
         }
-        // ALTIN KUTU KİMLİK KORUMASI
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; display: block !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;";
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; display: block !important;";
       }
-      const gadget = document.querySelector('.goog-te-gadget');
-      if (gadget) {
-        gadget.style.cssText = "color: #4a6080 !important; font-size: 10px !important; font-weight: bold !important;";
-        const textNode = Array.from(gadget.childNodes).find(n => n.nodeType === 3);
-        if (textNode && textNode.textContent.includes('tarafından')) textNode.textContent = ' Google Translate';
-      }
-    }, 50);
+    }, 100);
 
     return () => { clearInterval(styleInterval); observer.disconnect(); };
   }, []);
@@ -232,115 +216,71 @@ export default function GlobalHaberler() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
         
-        /* RADİKAL BANNER İMHASI */
-        .goog-te-banner-frame, .goog-te-banner, iframe.goog-te-banner-frame, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt, .goog-te-balloon-frame { 
-           display: none !important; visibility: hidden !important; height: 0 !important; width: 0 !important; opacity: 0 !important;
+        /* BANNER GIZLEME - KESIN COZUM */
+        .goog-te-banner-frame, .goog-te-banner, iframe[id=":1.container"], #goog-gt-tt, .goog-tooltip, .goog-te-balloon-frame { 
+          display: none !important; visibility: hidden !important; height: 0 !important; opacity: 0 !important;
         }
         
         html, body { 
-          top: 0px !important; margin-top: 0px !important; padding-top: 0px !important; position: static !important; background-color: #080c14 !important; 
+          top: 0px !important; margin-top: 0px !important; position: static !important; background-color: #080c14 !important; 
         }
 
-        /* YAZILAR İÇİN BALONCUK ÖNLEYİCİ */
         h1, h2, h3, h4, p, span, font { pointer-events: none !important; user-select: none !important; }
         .news-card, .archive-card, .tag-pill, button, a, .close-btn, .footer-link, #google_translate_element, .goog-te-combo { pointer-events: auto !important; }
 
         .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
-        .radar-container::-webkit-scrollbar { height: 4px; }
-        .radar-container::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 10px; }
         .news-card { min-width: 400px; max-width: 400px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; flex-shrink: 0; scroll-snap-align: start; position: relative; transition: 0.3s; }
-        .news-card:hover { border-color: #c9a96e; }
         .news-card img { width: 100%; height: 220px; object-fit: cover; border-bottom: 3px solid #c9a96e; pointer-events: none; }
-        .time-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: #c9a96e; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #c9a96e; z-index: 10; pointer-events: none; }
         .top-header-container { padding: 20px 32px 5px; display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; }
-        .tag-bar { display: flex; gap: 8px; overflow-x: auto; padding: 12px 32px; background: #0d1424; border-bottom: 1px solid #1e2d4a; position: sticky; top: 0; z-index: 100; }
-        .tag-pill { padding: 6px 16px; background: #080c14; border: 1px solid #1e2d4a; border-radius: 4px; color: #4a6080; font-size: 10px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+        .tag-pill { padding: 6px 16px; background: #080c14; border: 1px solid #1e2d4a; border-radius: 4px; color: #4a6080; font-size: 10px; font-weight: 900; cursor: pointer; }
         .tag-pill.active { background: #c9a96e; color: #0d1424; }
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; padding: 32px; max-width: 1400px; margin: 0 auto; }
-        .archive-card { background: #0d1424; border: 1px solid #1e2d4a; border-radius: 10px; padding: 25px; border-left: 4px solid #1e2d4a; cursor: pointer; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8,12,20,0.98); z-index: 10000; display: flex; justify-content: center; align-items: center; padding: 20px; pointer-events: auto; }
-        .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 40px; position: relative; pointer-events: auto; }
-        .close-btn { position: absolute; top: 15px; right: 15px; background: #c9a96e; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: 900; }
-        .header-title { font-family: 'Playfair Display', serif; font-size: 32px; color: #c9a96e; font-weight: 900; margin: 0; }
-        .search-input { background: #080c14; border: 1px solid #c9a96e; color: #e8e6e0; padding: 6px 12px; border-radius: 4px; outline: none; width: 250px; pointer-events: auto !important; }
-        .fiyakali-slogan { font-family: 'Playfair Display', serif; font-style: italic; color: #c9a96e; opacity: 0.9; font-size: 15px; margin-top: 4px; letter-spacing: 0.5px; }
-        .footer-link { color: #4a6080; text-decoration: none; margin: 0 10px; font-size: 12px; font-weight: bold; cursor: pointer; }
-        @media (max-width: 768px) {
-          .top-header-container { flex-direction: column; align-items: flex-start; padding: 15px 20px; }
-          .header-right-panel { width: 100%; justify-content: space-between; margin-top: 15px; display: flex !important; align-items: center; }
-          .news-card { min-width: 78vw; max-width: 78vw; }
-          .archive-grid { grid-template-columns: 1fr; padding: 20px; }
-          .modal-content { padding: 20px; width: 95%; }
-        }
+        .archive-card { background: #0d1424; border: 1px solid #1e2d4a; border-radius: 10px; padding: 25px; cursor: pointer; }
+        .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 800px; width: 100%; padding: 40px; position: relative; }
+        @media (max-width: 768px) { .news-card { min-width: 78vw; max-width: 78vw; } }
       `}</style>
-
-      {modalType === 'news' && selectedNews && (
-        <div className="modal-overlay" onClick={() => setModalType(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => setModalType(null)}>✕</button>
-            <img src={selectedNews.img} style={{ width: "100%", height: "250px", objectFit: "cover", borderRadius: "8px", marginBottom: "20px" }} />
-            <div style={{ color: "#c9a96e", fontWeight: "bold", fontSize: "12px" }}>{selectedNews.kaynak.toUpperCase()}</div>
-            <h2 style={{ color: "#fff", margin: "15px 0", fontSize: "22px" }}>{selectedNews.baslik}</h2>
-            <p style={{ color: "#8a9ab0", lineHeight: "1.6" }}>{selectedNews.detay}</p>
-            <a href={selectedNews.url} target="_blank" rel="noreferrer" style={{ background: "#c9a96e", color: "#0d1424", padding: "12px 25px", textDecoration: "none", fontWeight: "bold", borderRadius: "4px", display: "inline-block", marginTop: "20px", pointerEvents: "auto" }}>GO TO SOURCE ↗</a>
-          </div>
-        </div>
-      )}
 
       <header style={{ background: "#0d1424" }}>
         <div className="top-header-container">
           <div style={{ display: "flex", alignItems: "center" }}>
              <img src="/logo.jpeg" style={{ width: "50px", height: "50px", marginRight: "12px", objectFit: "contain" }} />
-             <div><h1 className="header-title">WORLD WINDOWS</h1><div className="fiyakali-slogan">Global news to understand the world</div></div>
+             <div><h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "32px", color: "#c9a96e", fontWeight: "900", margin: 0 }}>WORLD WINDOWS</h1><div style={{ fontStyle: "italic", color: "#c9a96e", opacity: 0.9, fontSize: "15px" }}>Global news to understand the world</div></div>
           </div>
           <div className="header-right-panel" translate="no" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-             {/* ALTIN KUTU KORUMA ALANI */}
-             <div id="google_translate_element" style={{ position: "relative", zIndex: 10001, display: "block !important" }}></div>
+             <div id="google_translate_element"></div>
              <div style={{ fontSize: "11px", color: "#c9a96e", fontWeight: "bold" }}>SYNC: {timeLeft}s</div>
-             <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} style={{ background: "#c9a96e", border: "none", padding: "0 12px", height: "30px", borderRadius: "4px", fontWeight: "900", cursor: "pointer", fontSize: "10px", pointerEvents: "auto" }}>SYNC NOW</button>
+             <button onClick={() => { fetchCollectiveNews(); setTimeLeft(60); }} style={{ background: "#c9a96e", border: "none", padding: "0 12px", height: "30px", borderRadius: "4px", fontWeight: "900", cursor: "pointer", fontSize: "10px" }}>SYNC NOW</button>
           </div>
         </div>
-        <div className="tag-bar">{GLOBAL_TAGS.map(t => (<div key={t.id} className={`tag-pill ${activeTag.id === t.id ? 'active' : ''}`} onClick={() => setActiveTag(t)}>#{t.label}</div>))}</div>
+        <div style={{ display: "flex", gap: "8px", overflowX: "auto", padding: "12px 32px", background: "#0d1424", borderBottom: "1px solid #1e2d4a" }}>{GLOBAL_TAGS.map(t => (<div key={t.id} className={`tag-pill ${activeTag.id === t.id ? 'active' : ''}`} onClick={() => setActiveTag(t)}>#{t.label}</div>))}</div>
         <TradingViewLiveTicker />
       </header>
 
       <main>
         <section style={{ padding: "20px 32px 0", maxWidth: "1400px", margin: "0 auto" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "20px" }}>
-            <input type="text" className="search-input" placeholder="Search news..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-            <h2 style={{ color: "#c9a96e", fontSize: "16px", fontFamily: "'Playfair Display', serif" }}>ARE YOU READY TO DISCOVER THE WORLD...</h2>
-          </div>
+          <input type="text" style={{ background: "#080c14", border: "1px solid #c9a96e", color: "#e8e6e0", padding: "6px 12px", borderRadius: "4px", width: "250px" }} placeholder="Search news..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </section>
-        <div className="radar-container">
+        <div className="radar-container" style={{ overflowX: "auto", display: "flex", gap: "20px", padding: "20px 32px 40px" }}>
           {displayData.radar.map(n => (
             <div key={n.id} className="news-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
-              <div className="time-badge">{getRelativeTime(n.timestamp)}</div>
-              <img src={n.img} />
-              <div style={{ padding: "15px" }}>
-                <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px" }}>{n.kaynak.toUpperCase()}</div>
-                <h3 style={{ fontSize: "16px", color: "#e8e6e0", margin: "8px 0 0", lineHeight: "1.3" }}>{n.baslik}</h3>
-              </div>
+              <img src={n.img} /><div style={{ padding: "15px" }}><div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px" }}>{n.kaynak.toUpperCase()}</div><h3 style={{ fontSize: "16px", color: "#e8e6e0", margin: "8px 0 0" }}>{n.baslik}</h3></div>
             </div>
           ))}
         </div>
-        <div className="archive-grid">
-          {displayData.archive.map(n => (
-            <div key={n.id} className="archive-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
-              <div style={{ fontSize: "10px", color: "#c9a96e", fontWeight: "900" }}>{n.kaynak.toUpperCase()} • {getRelativeTime(n.timestamp)}</div>
-              <h4 style={{ fontSize: "15px", margin: "8px 0 0", lineHeight: "1.4" }}>{n.baslik}</h4>
-            </div>
-          ))}
-        </div>
+        <div className="archive-grid">{displayData.archive.map(n => (<div key={n.id} className="archive-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}><div style={{ fontSize: "10px", color: "#c9a96e", fontWeight: "900" }}>{n.kaynak.toUpperCase()} • {getRelativeTime(n.timestamp)}</div><h4 style={{ fontSize: "15px", margin: "8px 0 0" }}>{n.baslik}</h4></div>))}</div>
       </main>
-      <footer style={{ padding: "40px", textAlign: "center", borderTop: "1px solid #1e2d4a", marginTop: "40px" }}>
-        <div style={{ color: "#c9a96e", fontWeight: "900", marginBottom: "20px" }}>WORLD WINDOWS</div>
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "10px" }}>
-          <span className="footer-link" onClick={() => setModalType('about')}>ABOUT US</span>
-          <span className="footer-link" onClick={() => setModalType('privacy')}>PRIVACY</span>
-          <span className="footer-link" onClick={() => setModalType('contact')}>CONTACT</span>
+
+      {modalType === 'news' && selectedNews && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(8,12,20,0.98)", zIndex: 10000, display: "flex", justifyContent: "center", alignItems: "center", padding: "20px" }} onClick={() => setModalType(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <img src={selectedNews.img} style={{ width: "100%", height: "250px", objectFit: "cover", borderRadius: "8px", marginBottom: "20px" }} />
+            <h2 style={{ color: "#fff", margin: "15px 0", fontSize: "22px" }}>{selectedNews.baslik}</h2>
+            <p style={{ color: "#8a9ab0", lineHeight: "1.6" }}>{selectedNews.detay}</p>
+            <a href={selectedNews.url} target="_blank" rel="noreferrer" style={{ background: "#c9a96e", color: "#0d1424", padding: "12px 25px", textDecoration: "none", fontWeight: "bold", borderRadius: "4px", display: "inline-block", marginTop: "20px" }}>GO TO SOURCE ↗</a>
+          </div>
         </div>
-        <div style={{ color: "#3a5278", fontSize: "10px", marginTop: "30px" }}>© 2026 World Windows Terminal. All Rights Reserved.</div>
-      </footer>
+      )}
+      <footer style={{ padding: "40px", textAlign: "center", borderTop: "1px solid #1e2d4a", marginTop: "40px" }}><div style={{ color: "#3a5278", fontSize: "10px" }}>© 2026 World Windows Terminal. All Rights Reserved.</div></footer>
       <Analytics />
     </div>
   );
