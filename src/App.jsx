@@ -154,7 +154,20 @@ export default function GlobalHaberler() {
           return items.map(item => {
             const title = item.querySelector("title")?.textContent || "News";
             const linkElem = item.querySelector("link");
-            const link = linkElem?.textContent || linkElem?.getAttribute("href") || "#";
+            let rawLink = (linkElem?.textContent || linkElem?.getAttribute("href") || "#").trim();
+            
+            // YARIM LİNK DÜZELTİCİSİ (Vercel 404 Hatasını Önler)
+            if (rawLink.startsWith("/")) {
+              try {
+                const feedOrigin = new URL(url).origin;
+                rawLink = feedOrigin + rawLink;
+                // Bigpara için Hürriyet düzeltmesi
+                if (rawLink.includes('bigpara.com')) {
+                  rawLink = rawLink.replace('www.bigpara.com', 'bigpara.hurriyet.com.tr');
+                }
+              } catch(e) {}
+            }
+
             const desc = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || item.querySelector("content")?.textContent || "";
             const cleanDesc = desc.replace(/<[^>]*>?/gm, '');
 
@@ -173,12 +186,12 @@ export default function GlobalHaberler() {
             const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
 
             return {
-              id: item.querySelector("guid")?.textContent || link,
+              id: item.querySelector("guid")?.textContent || rawLink,
               baslik: title,
               ozet: cleanDesc.slice(0, 180) + "...",
               detay: cleanDesc,
               kaynak: feedTitle.replace(/ - BBC News| \| World \| The Guardian/gi, ''),
-              url: link,
+              url: rawLink, // DÜZELTİLMİŞ LİNK BURADA KULLANILIYOR
               img: imgUrl,
               tagLabel: activeTag.label,
               tagId: activeTag.id,
