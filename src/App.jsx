@@ -93,12 +93,30 @@ export default function GlobalHaberler() {
   useEffect(() => {
     document.title = "WORLD WINDOWS";
     
+    // BANNER VE BALONCUK İMHASI - MUTATION OBSERVER
     const observer = new MutationObserver(() => {
-      const targets = ['.goog-te-balloon-frame', '.goog-te-balloon-wrapper', '.goog-te-menu-frame', '.goog-tooltip', '#goog-gt-tt', '.goog-te-spinner-pos', '.goog-te-banner-frame'];
-      targets.forEach(selector => document.querySelectorAll(selector).forEach(el => el.remove()));
-      if (document.body.style.top !== "0px") document.body.style.top = "0px";
+      const targets = [
+        '.goog-te-balloon-frame', '.goog-te-balloon-wrapper', 
+        '.goog-te-menu-frame', '.goog-tooltip', '#goog-gt-tt', 
+        '.goog-te-spinner-pos', '.goog-te-banner-frame', 
+        'iframe.goog-te-banner-frame', '.goog-te-banner'
+      ];
+      targets.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => el.remove());
+      });
+      
+      // Google'ın eklediği zoraki 'margin-top' ve 'top' stilini ez
+      if (document.body.style.top !== "0px") {
+        document.body.style.top = "0px";
+        document.body.style.setProperty("top", "0px", "important");
+      }
+      if (document.documentElement.style.marginTop !== "0px") {
+        document.documentElement.style.marginTop = "0px";
+        document.documentElement.style.setProperty("margin-top", "0px", "important");
+      }
 
-      // GOOGLE ÇEVİRİ YAZISINI DÜZELT
+      // Google Translate metnini kısalt
       const gadgetText = document.querySelector('.goog-te-gadget');
       if (gadgetText) {
         const textNode = Array.from(gadgetText.childNodes).find(n => n.nodeType === 3);
@@ -131,7 +149,6 @@ export default function GlobalHaberler() {
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
         if (combo.options && combo.options.length > 0) {
-          // DİL İSİMLERİNİ İNGİLİZCEYE ÇEVİR
           Array.from(combo.options).forEach(opt => {
             if (LANGUAGE_MAP[opt.textContent]) opt.textContent = LANGUAGE_MAP[opt.textContent];
           });
@@ -217,17 +234,28 @@ export default function GlobalHaberler() {
     <div style={{ paddingTop: "40px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
-        .goog-te-balloon-frame, .goog-te-balloon-wrapper, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt, .goog-te-banner-frame, iframe.goog-te-banner-frame { 
+        
+        /* BANNER, BALONCUK VE BEYAZ BANT İMHASI */
+        .goog-te-balloon-frame, .goog-te-balloon-wrapper, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt, .goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-banner { 
            display: none !important; visibility: hidden !important; pointer-events: none !important; 
         }
-        body { top: 0px !important; position: static !important; }
+        
+        /* Sayfa yerleşim kilidi */
+        html, body { 
+          top: 0px !important; 
+          margin-top: 0px !important; 
+          position: static !important; 
+        }
+        
         h1, h2, h3, h4, p, span, font { 
            pointer-events: none !important; 
            user-select: none !important;
         }
+
         .news-card, .archive-card, .tag-pill, button, a, .close-btn, .footer-link, .goog-te-combo { 
            pointer-events: auto !important; 
         }
+
         .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
         .radar-container::-webkit-scrollbar { height: 4px; }
         .radar-container::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 10px; }
