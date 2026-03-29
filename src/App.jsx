@@ -71,19 +71,36 @@ export default function GlobalHaberler() {
 
   useEffect(() => {
     document.title = "WORLD WINDOWS";
-    // Favicon & Translate Init
+    // FAVICON & GOOGLE TRANSLATE (ALTIN KUTU MODU)
     const head = document.getElementsByTagName('head')[0];
     let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
     link.type = 'image/jpeg'; link.rel = 'shortcut icon'; link.href = '/logo.jpeg';
     head.appendChild(link);
 
     window.googleTranslateElementInit = () => {
-      new window.google.translate.TranslateElement({ pageLanguage: 'en', includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl', autoDisplay: false }, 'google_translate_element');
+      new window.google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl',
+        autoDisplay: false
+      }, 'google_translate_element');
     };
     const script = document.createElement("script");
     script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
     script.async = true;
     document.body.appendChild(script);
+
+    // ALTIN KUTU (LANG) STIL ZORLAMASI
+    const styleInterval = setInterval(() => {
+      const combo = document.querySelector('.goog-te-combo');
+      if (combo && !combo.dataset.hacked) {
+        combo.dataset.hacked = "true";
+        if (combo.options && combo.options.length > 0) { combo.options[0].textContent = 'LANG'; }
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important;";
+      }
+      const gadget = document.querySelector('.goog-te-gadget');
+      if(gadget) { gadget.style.cssText = "color: transparent !important; font-size: 0px !important; display: flex !important; align-items: center !important;"; }
+    }, 100);
+    return () => clearInterval(styleInterval);
   }, []);
 
   useEffect(() => {
@@ -148,10 +165,10 @@ export default function GlobalHaberler() {
     <div style={{ paddingTop: "40px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
-        .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; -webkit-overflow-scrolling: touch; }
+        .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
         .radar-container::-webkit-scrollbar { height: 4px; }
         .radar-container::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 10px; }
-        .news-card { min-width: 400px; max-width: 400px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; flex-shrink: 0; }
+        .news-card { min-width: 400px; max-width: 400px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; flex-shrink: 0; scroll-snap-align: start; }
         .news-card img { width: 100%; height: 220px; object-fit: cover; border-bottom: 3px solid #c9a96e; }
         .top-header-container { padding: 20px 32px 5px; display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; }
         .tag-bar { display: flex; gap: 8px; overflow-x: auto; padding: 12px 32px; background: #0d1424; border-bottom: 1px solid #1e2d4a; position: sticky; top: 0; z-index: 100; }
