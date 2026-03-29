@@ -85,13 +85,7 @@ export default function GlobalHaberler() {
   useEffect(() => {
     document.title = "WORLD WINDOWS";
     
-    // GOOGLE BALONCUKLARINI SİLEN BEKÇİ (MutationObserver)
-    const observer = new MutationObserver(() => {
-      const tooltips = document.querySelectorAll('.goog-te-balloon-frame, .goog-te-balloon-wrapper, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt');
-      tooltips.forEach(t => t.remove());
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
+    // GOOGLE TRANSLATE INIT - iOS DESTEKLİ
     const initTranslate = () => {
       if (!window.googleTranslateElementInit) {
         window.googleTranslateElementInit = () => {
@@ -102,7 +96,9 @@ export default function GlobalHaberler() {
           }, 'google_translate_element');
         };
       }
-      if (!document.getElementById('google-translate-script')) {
+      
+      const existingScript = document.getElementById('google-translate-script');
+      if (!existingScript) {
         const script = document.createElement("script");
         script.id = 'google-translate-script';
         script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
@@ -113,6 +109,7 @@ export default function GlobalHaberler() {
 
     initTranslate();
 
+    // iOS İÇİN SÜREKLİ DENETİM VE STİL KİLİDİ
     const styleInterval = setInterval(() => {
       const combo = document.querySelector('.goog-te-combo');
       if (combo) {
@@ -132,16 +129,14 @@ export default function GlobalHaberler() {
         }
         combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important; appearance: none !important; -webkit-appearance: none !important;";
       } else {
+        // Eğer iOS'ta kaybolursa tekrar yüklemeyi dene
         initTranslate();
       }
       const gadget = document.querySelector('.goog-te-gadget');
       if(gadget) { gadget.style.cssText = "color: transparent !important; font-size: 0px !important; display: flex !important; align-items: center !important;"; }
-    }, 1000);
+    }, 2000);
 
-    return () => {
-      clearInterval(styleInterval);
-      observer.disconnect();
-    };
+    return () => clearInterval(styleInterval);
   }, []);
 
   useEffect(() => {
@@ -174,11 +169,13 @@ export default function GlobalHaberler() {
             let rawLink = (linkElem?.textContent || linkElem?.getAttribute("href") || "#").trim();
             if (rawLink.startsWith("/")) rawLink = feedOrigin + rawLink;
             if (rawLink.includes('bigpara.com')) rawLink = rawLink.replace('www.bigpara.com', 'bigpara.hurriyet.com.tr');
+            
             const newsId = btoa(unescape(encodeURIComponent(title.slice(0,50) + feedTitle)));
             if (!persistentTimeCache[newsId]) {
               persistentTimeCache[newsId] = Date.now();
               localStorage.setItem('ww_time_cache', JSON.stringify(persistentTimeCache));
             }
+
             return { id: Math.random(), baslik: title, detay: (item.querySelector("description")?.textContent || "").replace(/<[^>]*>?/gm, ''), kaynak: feedTitle.replace(/ - BBC News| \| World/gi, ''), url: rawLink, img: `https://picsum.photos/seed/${encodeURIComponent(title.slice(0,5))}/800/450`, tagId: activeTag.id, timestamp: persistentTimeCache[newsId] };
           });
         } catch (e) { return []; }
@@ -208,15 +205,9 @@ export default function GlobalHaberler() {
     <div style={{ paddingTop: "40px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
-        
-        /* EKSTREM BALONCUK İMHASI */
-        .goog-te-balloon-frame, .goog-te-balloon-wrapper, .goog-te-menu-frame, .goog-tooltip, #goog-gt-tt, .goog-te-spinner-pos {
-          display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;
-        }
+        iframe.goog-te-menu-frame, .goog-te-balloon-frame, .goog-tooltip, .goog-tooltip:hover { display: none !important; visibility: hidden !important; opacity: 0 !important; }
         body { top: 0px !important; position: static !important; }
         .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
-        font { background-color: transparent !important; box-shadow: none !important; }
-
         .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
         .radar-container::-webkit-scrollbar { height: 4px; }
         .radar-container::-webkit-scrollbar-thumb { background: #1e2d4a; border-radius: 10px; }
