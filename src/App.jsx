@@ -55,6 +55,12 @@ export default function GlobalHaberler() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [modalType, setModalType] = useState(null);
 
+  // SİTENİN ANA DİLİNİ VE BAŞLIĞINI İNGİLİZCEYE SABİTLE (SEO VE CHROME İÇİN)
+  useEffect(() => {
+    document.documentElement.lang = "en";
+    document.title = "WORLD WINDOWS | Global News to Understand the World";
+  }, []);
+
   useEffect(() => {
     window.googleTranslateElementInit = () => {
       new window.google.translate.TranslateElement({
@@ -77,7 +83,7 @@ export default function GlobalHaberler() {
             combo.options[0].text = 'EN';
           }
         }
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 60px !important; outline: none !important;";
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 60px !important; outline: none !important; margin: 0 !important;";
       }
       
       const gadget = document.querySelector('.goog-te-gadget');
@@ -188,13 +194,11 @@ export default function GlobalHaberler() {
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8,12,20,0.98); backdrop-filter: blur(15px); z-index: 10000; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 850px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 40px; }
         
-        /* === BALONCUK, BANT VE PENCERE YOK EDİCİ CSS (KESİN ÇÖZÜM) === */
+        /* === BALONCUK, BANT VE PENCERE YOK EDİCİ CSS === */
         body { top: 0px !important; position: static !important; margin-top: 0px !important; }
         iframe.goog-te-banner-frame { display: none !important; visibility: hidden !important; }
         .goog-te-banner-frame { display: none !important; }
         .goog-logo-link { display: none !important; }
-        
-        /* Hover olunca çıkan "Orijinal metni göster" baloncukları ve pencereleri */
         #goog-gt-tt { display: none !important; visibility: hidden !important; opacity: 0 !important; }
         .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }
         .goog-tooltip { display: none !important; visibility: hidden !important; }
@@ -209,7 +213,6 @@ export default function GlobalHaberler() {
         .sync-text { font-size: 12px; color: #c9a96e; font-weight: bold; }
         .action-btn { background: #c9a96e; color: #0d1424; border: none; padding: 0 20px; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px; height: 30px; display: flex; align-items: center; font-family: 'Source Sans 3', sans-serif; text-transform: uppercase; }
         
-        /* DAHA KISA EN BUTONU */
         .goog-te-combo { background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 60px !important; outline: none !important; margin: 0 !important; }
 
         /* TELEFON EKRANLARI İÇİN KÜÇÜLTME ADIMLARI */
