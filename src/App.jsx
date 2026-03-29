@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { Analytics } from "@vercel/analytics/react";
 
 const GLOBAL_TAGS = [
-  { id: "all", label: "ALL", urls: [] }, // Alt tarafta tüm URL'leri otomatik toplayacak
+  { id: "all", label: "ALL", urls: [] },
   { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
   { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss"]},
   { id: "kripto", label: "CRYPTO", urls: ["https://cointelegraph.com/rss", "https://www.coindesk.com/arc/outboundfeeds/rss/"]},
@@ -14,7 +14,6 @@ const GLOBAL_TAGS = [
   { id: "kap", label: "KAP & CORP", urls: ["https://www.kap.org.tr/tr/rss", "https://www.paraanaliz.com/feed/", "https://www.dunya.com/rss"]},
 ];
 
-// ALL SEKMESİ İÇİN TÜM URL'LERİ OTOMATİK BİRLEŞTİR
 const ALL_URLS = Array.from(new Set(GLOBAL_TAGS.flatMap(tag => tag.urls)));
 
 const SOURCE_LINKS = [
@@ -101,7 +100,6 @@ export default function GlobalHaberler() {
         autoDisplay: false
       }, 'google_translate_element');
     };
-    
     const script = document.createElement("script");
     script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
     script.async = true;
@@ -122,7 +120,6 @@ export default function GlobalHaberler() {
         gadget.style.cssText = "color: transparent !important; font-size: 0px !important; display: flex !important; align-items: center !important;";
       }
     }, 500);
-
     return () => clearInterval(styleInterval);
   }, []);
 
@@ -142,7 +139,6 @@ export default function GlobalHaberler() {
     setLoading(true);
     try {
       const allFetchedNews = [];
-      // EĞER ALL SEKMESİNDEYSEK TÜM LİSTEYİ, DEĞİLSEK SADECE O KATEGORİYİ ÇEK
       const targetUrls = activeTag.id === "all" ? ALL_URLS : activeTag.urls;
 
       const fetchPromises = targetUrls.map(async (url) => {
@@ -150,7 +146,6 @@ export default function GlobalHaberler() {
           const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
           if (!res.ok) return [];
           const xmlText = await res.text();
-          
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xmlText, "text/xml");
           const items = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 10);
@@ -174,7 +169,6 @@ export default function GlobalHaberler() {
                 if (mediaThumb.length > 0 && mediaThumb[0].getAttribute("url")) imgUrl = mediaThumb[0].getAttribute("url");
               }
             }
-
             const pubDate = item.querySelector("pubDate")?.textContent || item.querySelector("published")?.textContent || item.querySelector("updated")?.textContent;
             const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
 
@@ -195,7 +189,6 @@ export default function GlobalHaberler() {
       });
       const results = await Promise.all(fetchPromises);
       results.forEach(batch => { if(batch) allFetchedNews.push(...batch); });
-      
       setNewsPool(prev => {
         const combined = [...allFetchedNews, ...prev];
         return combined.filter((v, i, a) => a.findIndex(t => t.baslik === v.baslik) === i);
@@ -204,7 +197,6 @@ export default function GlobalHaberler() {
   }
 
   const displayData = useMemo(() => {
-    // KONSOLİDASYON: ALL SEÇİLİYSE TÜM HAVUZU, DEĞİLSE SADECE İLGİLİ KATEGORİYİ FİLTRELE
     const filtered = activeTag.id === "all" ? newsPool : newsPool.filter(i => i.tagId === activeTag.id);
     const sorted = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
     return { radar: sorted.slice(0, 8), archive: sorted.slice(8, 500) };
@@ -232,19 +224,9 @@ export default function GlobalHaberler() {
         .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 850px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 40px; }
         
         body { top: 0px !important; position: static !important; margin-top: 0px !important; }
-        iframe.goog-te-banner-frame { display: none !important; visibility: hidden !important; }
-        .goog-te-banner-frame { display: none !important; }
-        .goog-logo-link { display: none !important; }
-        #goog-gt-tt { display: none !important; visibility: hidden !important; opacity: 0 !important; }
-        .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }
-        .goog-tooltip { display: none !important; visibility: hidden !important; }
-        .goog-tooltip:hover { display: none !important; }
-        .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
-
         .header-left-panel { display: flex; flex-direction: column; }
         .header-title { font-family: 'Playfair Display', serif; font-size: 32px; color: #c9a96e; font-weight: 900; margin: 0; white-space: nowrap; }
         .header-subtitle { font-family: 'Playfair Display', serif; font-size: 15px; color: #c9a96e; font-style: italic; margin-top: 2px; letter-spacing: 0.5px; opacity: 0.9; }
-        
         .sync-text { font-size: 12px; color: #c9a96e; font-weight: bold; }
         .action-btn { background: #c9a96e; color: #0d1424; border: none; padding: 0 20px; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px; height: 30px; display: flex; align-items: center; font-family: 'Source Sans 3', sans-serif; text-transform: uppercase; }
         .goog-te-combo { background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 60px !important; outline: none !important; margin: 0 !important; }
@@ -254,7 +236,6 @@ export default function GlobalHaberler() {
           .header-subtitle { font-size: 12px; margin-top: 0px; }
           .sync-text { font-size: 10px; }
           .action-btn, .goog-te-combo { padding: 0px 6px !important; font-size: 9px !important; height: 26px !important; }
-          .header-right-panel { gap: 8px !important; }
         }
       `}</style>
 
@@ -293,7 +274,8 @@ export default function GlobalHaberler() {
             {modalType === 'contact' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>CONTACT</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>For your questions, collaborations, or advertising proposals: iletisim@worldwindows.network</p>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>For your questions, collaborations, or advertising proposals:</p>
+                <h3 style={{ color: "#fff" }}>worldwindows.network@gmail.com</h3>
               </>
             )}
           </div>
