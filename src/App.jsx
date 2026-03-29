@@ -40,7 +40,7 @@ const SOURCE_LINKS = [
   { name: "Investing.com", url: "https://www.investing.com", color: "#F38B00", font: "sans-serif", weight: "900" },
   { name: "Bloomberg HT", url: "https://www.bloomberght.com", color: "#E8E6E0", font: "sans-serif", weight: "900" },
   { name: "Yahoo Finance", url: "https://finance.yahoo.com", color: "#A666FA", font: "sans-serif", weight: "900", style: "italic" },
-  { name: "Bigpara", url: "https://www.bigpara.com", color: "#FF3333", font: "sans-serif", weight: "900" },
+  { name: "Bigpara", url: "https://bigpara.hurriyet.com.tr/", color: "#FF3333", font: "sans-serif", weight: "900" },
   { name: "KAP", url: "https://www.kap.org.tr", color: "#00BFFF", font: "sans-serif", weight: "900" },
   { name: "Para Analiz", url: "https://www.paraanaliz.com", color: "#E8E6E0", font: "sans-serif", weight: "700" },
   { name: "Dünya", url: "https://www.dunya.com", color: "#FF3333", font: "'Playfair Display', serif", weight: "900" },
@@ -79,13 +79,30 @@ const TradingViewLiveTicker = memo(() => {
   return <div style={{ background: "#000", borderBottom: "1px solid #1e2d4a", minHeight: "46px" }} ref={container}></div>;
 });
 
-// LOGO SVG (ALTIN SARI VİZÖR/RADAR)
-const WorldWindowsLogo = () => (
-  <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '15px' }}>
-    <circle cx="50" cy="50" r="48" stroke="#c9a96e" strokeWidth="2" />
-    <circle cx="50" cy="50" r="28" stroke="#c9a96e" strokeWidth="1" strokeDasharray="4 4"/>
-    <rect x="30" y="30" width="40" height="40" stroke="#c9a96e" strokeWidth="4" rx="2"/>
-    <circle cx="50" cy="50" r="5" fill="#c9a96e" />
+// YENİ DEVASA GEOMETRİK 'W' NETWORK LOGOSU
+const GeometricNetworkLogo = () => (
+  <svg width="75" height="75" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '20px' }}>
+    {/* Dış Ağ Bağlantıları */}
+    <path d="M50 5 L85 25 L85 75 L50 95 L15 75 L15 25 Z" stroke="#c9a96e" strokeWidth="1" strokeDasharray="2 2" opacity="0.4" />
+    <path d="M50 5 L50 95 M15 25 L85 75 M15 75 L85 25" stroke="#c9a96e" strokeWidth="0.5" opacity="0.3" />
+    <circle cx="50" cy="5" r="2" fill="#c9a96e" />
+    <circle cx="85" cy="25" r="2" fill="#c9a96e" />
+    <circle cx="85" cy="75" r="2" fill="#c9a96e" />
+    <circle cx="50" cy="95" r="2" fill="#c9a96e" />
+    <circle cx="15" cy="75" r="2" fill="#c9a96e" />
+    <circle cx="15" cy="25" r="2" fill="#c9a96e" />
+    
+    {/* Dominant Kalın W Harfi */}
+    <path d="M10 20 L30 85 L50 45 L70 85 L90 20 L75 20 L60 65 L50 40 L40 65 L25 20 Z" fill="url(#goldGradient)" />
+    <path d="M10 20 L30 85 L50 45 L70 85 L90 20" stroke="#fff" strokeWidth="1" strokeLinejoin="bevel" fill="none" opacity="0.3" />
+    
+    <defs>
+      <linearGradient id="goldGradient" x1="10" y1="20" x2="90" y2="85" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#e3c78a" />
+        <stop offset="0.5" stopColor="#c9a96e" />
+        <stop offset="1" stopColor="#8a7344" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 
@@ -107,7 +124,7 @@ export default function GlobalHaberler() {
     window.googleTranslateElementInit = () => {
       new window.google.translate.TranslateElement({
         pageLanguage: 'en',
-        includedLanguages: 'tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl',
+        includedLanguages: 'en,tr,es,de,fr,ar,zh-CN,ru,hi,ja,ko,th,kk,az,el,pt,cs,da,nl',
         autoDisplay: false
       }, 'google_translate_element');
     };
@@ -121,9 +138,9 @@ export default function GlobalHaberler() {
       if (combo && !combo.dataset.hacked) {
         combo.dataset.hacked = "true";
         if (combo.options && combo.options.length > 0) {
-          combo.options[0].textContent = '🌐 TRANSLATE';
+          combo.options[0].textContent = 'LANG';
         }
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 110px !important; outline: none !important; margin: 0 !important;";
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 70px !important; outline: none !important; margin: 0 !important;";
       }
       const gadget = document.querySelector('.goog-te-gadget');
       if(gadget) {
@@ -164,7 +181,18 @@ export default function GlobalHaberler() {
           return items.map(item => {
             const title = item.querySelector("title")?.textContent || "News";
             const linkElem = item.querySelector("link");
-            const link = linkElem?.textContent || linkElem?.getAttribute("href") || "#";
+            let rawLink = (linkElem?.textContent || linkElem?.getAttribute("href") || "#").trim();
+            
+            if (rawLink.startsWith("/")) {
+              try {
+                const feedOrigin = new URL(url).origin;
+                rawLink = feedOrigin + rawLink;
+                if (rawLink.includes('bigpara.com')) {
+                  rawLink = rawLink.replace('www.bigpara.com', 'bigpara.hurriyet.com.tr');
+                }
+              } catch(e) {}
+            }
+
             const desc = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || item.querySelector("content")?.textContent || "";
             const cleanDesc = desc.replace(/<[^>]*>?/gm, '');
 
@@ -183,12 +211,12 @@ export default function GlobalHaberler() {
             const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
 
             return {
-              id: item.querySelector("guid")?.textContent || link,
+              id: item.querySelector("guid")?.textContent || rawLink,
               baslik: title,
               ozet: cleanDesc.slice(0, 180) + "...",
               detay: cleanDesc,
               kaynak: feedTitle.replace(/ - BBC News| \| World \| The Guardian/gi, ''),
-              url: link,
+              url: rawLink,
               img: imgUrl,
               tagLabel: activeTag.label,
               tagId: activeTag.id,
@@ -208,7 +236,9 @@ export default function GlobalHaberler() {
 
   const displayData = useMemo(() => {
     let filtered = activeTag.id === "all" ? newsPool : newsPool.filter(i => i.tagId === activeTag.id);
-    if (searchTerm.trim() !== "") {
+    const isSearching = searchTerm.trim() !== "";
+
+    if (isSearching) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(i => 
         i.baslik.toLowerCase().includes(term) || 
@@ -216,7 +246,13 @@ export default function GlobalHaberler() {
         i.kaynak.toLowerCase().includes(term)
       );
     }
+    
     const sorted = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
+    
+    if (isSearching) {
+      return { radar: [], archive: sorted };
+    }
+
     return { radar: sorted.slice(0, 8), archive: sorted.slice(8, 500) };
   }, [newsPool, activeTag, searchTerm]);
 
@@ -224,22 +260,31 @@ export default function GlobalHaberler() {
     <div style={{ paddingTop: "40px", minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Source+Sans+3:wght@400;700&display=swap');
+        
+        .top-header-container { padding: 20px 32px 5px; }
         .tag-bar { display: flex; gap: 8px; overflow-x: auto; padding: 12px 32px; background: #0d1424; border-bottom: 1px solid #1e2d4a; position: sticky; top: 0; z-index: 100; }
         .tag-pill { padding: 6px 16px; background: #080c14; border: 1px solid #1e2d4a; border-radius: 4px; color: #4a6080; font-size: 10px; font-weight: 900; cursor: pointer; white-space: nowrap; transition: 0.2s; }
         .tag-pill.active { background: #c9a96e; border-color: #c9a96e; color: #0d1424; }
+        
+        .search-header-container { display: flex; alignItems: center; gap: 20px; padding: 0 32px; margin-bottom: 15px; flex-wrap: wrap; }
         .news-slider { display: flex; gap: 24px; overflow-x: auto; padding: 20px 32px 40px; }
         .news-card { min-width: 420px; max-width: 420px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; position: relative; transition: 0.3s; }
         .news-card:hover { border-color: #c9a96e; transform: translateY(-5px); }
         .news-card img { width: 100%; height: 240px; object-fit: cover; border-bottom: 3px solid #c9a96e; }
+        
         .time-badge { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 5px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #c9a96e; border: 1px solid #c9a96e; z-index: 2; }
+        
         .archive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; padding: 0 32px 60px; }
         .archive-card { background: #0d1424; border: 1px solid #1e2d4a; border-radius: 10px; cursor: pointer; padding: 25px; border-left: 4px solid #1e2d4a; }
+        
         .close-btn { position: fixed; top: 30px; right: 30px; background: #c9a96e; color: #080c14; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 24px; font-weight: bold; z-index: 20000; display: flex; align-items: center; justify-content: center; }
         .footer { background: #0d1424; padding: 40px 32px; border-top: 1px solid #1e2d4a; text-align: center; }
         .footer-link { color: #4a6080; text-decoration: none; margin: 0 15px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .footer-link:hover { color: #c9a96e; }
+        
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8,12,20,0.98); backdrop-filter: blur(15px); z-index: 10000; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 850px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 40px; }
+        .modal-img { width: calc(100% + 80px); margin: -40px -40px 20px; height: 350px; object-fit: cover; border-bottom: 2px solid #c9a96e; }
         
         body { top: 0px !important; position: static !important; margin-top: 0px !important; }
         .header-left-panel { display: flex; flex-direction: column; }
@@ -249,48 +294,36 @@ export default function GlobalHaberler() {
         .action-btn { background: #c9a96e; color: #0d1424; border: none; padding: 0 20px; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 11px; height: 30px; display: flex; align-items: center; font-family: 'Source Sans 3', sans-serif; text-transform: uppercase; }
 
         .goog-te-gadget { color: transparent !important; font-size: 0px !important; display: flex !important; align-items: center !important; }
-        .goog-te-combo { background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 110px !important; outline: none !important; margin: 0 !important; }
+        .goog-te-combo { background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 70px !important; outline: none !important; margin: 0 !important; }
 
-        /* YENİ ARAMA KUTUSU VE İKON STİLLERİ */
-        .search-input-wrapper {
-          position: relative;
-          display: flex;
-          align-items: center;
-          width: 250px;
-        }
-        .search-input {
-          background: #080c14;
-          border: 1px solid #c9a96e;
-          color: #e8e6e0;
-          padding: 6px 40px 6px 14px; /* Sağdan boşluk açtık ikon için */
-          border-radius: 4px;
-          outline: none;
-          font-family: 'Source Sans 3', sans-serif;
-          font-size: 14px;
-          width: 100%;
-          transition: 0.3s;
-        }
-        .search-input:focus {
-          box-shadow: 0 0 8px rgba(201, 169, 110, 0.4);
-        }
-        .search-input-icon {
-          position: absolute;
-          right: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #c9a96e;
-        }
+        .search-input-wrapper { position: relative; display: flex; align-items: center; width: 250px; }
+        .search-input { background: #080c14; border: 1px solid #c9a96e; color: #e8e6e0; padding: 6px 40px 6px 14px; border-radius: 4px; outline: none; font-family: 'Source Sans 3', sans-serif; font-size: 14px; width: 100%; transition: 0.3s; }
+        .search-input:focus { box-shadow: 0 0 8px rgba(201, 169, 110, 0.4); }
+        .search-input-icon { position: absolute; right: 12px; display: flex; align-items: center; justify-content: center; color: #c9a96e; }
 
         @media (max-width: 768px) {
-          .header-title { font-size: 24px; }
-          .header-subtitle { font-size: 12px; margin-top: 0px; }
-          .sync-text { font-size: 10px; }
-          .action-btn { padding: 0px 8px !important; font-size: 9px !important; height: 26px !important; }
-          .header-right-panel { gap: 6px !important; }
+          .top-header-container { padding: 15px 20px 5px; flex-direction: column; align-items: flex-start !important; gap: 15px; }
+          .header-title { font-size: 26px; }
+          .header-subtitle { font-size: 12px; margin-top: 2px; }
+          .header-right-panel { width: 100%; justify-content: space-between; gap: 10px !important; }
+          .sync-text { font-size: 11px; }
+          .tag-bar { padding: 12px 20px; }
+          .search-header-container { flex-direction: column; align-items: flex-start; padding: 0 20px; gap: 15px; margin-bottom: 10px; }
+          .search-input { width: 100%; box-sizing: border-box; }
+          .news-slider { padding: 15px 20px 30px; gap: 15px; }
+          .news-card { min-width: 85vw; max-width: 85vw; }
+          .news-card img { height: 200px; }
+          .archive-grid { grid-template-columns: 1fr; padding: 0 20px 40px; gap: 15px; }
+          .modal-overlay { padding: 10px; }
+          .modal-content { padding: 25px; }
+          .modal-img { width: calc(100% + 50px); margin: -25px -25px 15px; height: 220px; }
+          .close-btn { top: 15px; right: 15px; width: 35px; height: 35px; font-size: 18px; }
+          .footer-link { margin: 0 8px; font-size: 10px; display: inline-block; margin-bottom: 10px; }
           .search-input-wrapper { width: 140px; }
           .search-input { padding: 4px 30px 4px 10px; font-size: 12px; }
           .search-input-icon svg { width: 14px; height: 14px; }
+          /* Mobilde logo boyutunu biraz küçültelim ki ekranı boğmasın */
+          .mobile-logo-svg { width: 50px !important; height: 50px !important; margin-right: 15px !important; }
         }
       `}</style>
 
@@ -301,17 +334,17 @@ export default function GlobalHaberler() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             {modalType === 'news' && selectedNews && (
               <>
-                <img src={selectedNews.img} style={{ width: "calc(100% + 80px)", margin: "-40px -40px 20px", height: "350px", objectFit: "cover", borderBottom: "2px solid #c9a96e" }} />
+                <img src={selectedNews.img} className="modal-img" />
                 <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "12px" }}>{selectedNews.kaynak.toUpperCase()} • {getRelativeTime(selectedNews.timestamp)}</div>
-                <h2 style={{ fontFamily: "'Playfair Display'", fontSize: "32px", color: "#fff", margin: "15px 0" }}>{selectedNews.baslik}</h2>
-                <p style={{ color: "#8a9ab0", lineHeight: "1.8", fontSize: "18px" }}>{selectedNews.detay}</p>
+                <h2 style={{ fontFamily: "'Playfair Display'", fontSize: "28px", color: "#fff", margin: "15px 0" }}>{selectedNews.baslik}</h2>
+                <p style={{ color: "#8a9ab0", lineHeight: "1.8", fontSize: "16px" }}>{selectedNews.detay}</p>
                 <a href={selectedNews.url} target="_blank" rel="noreferrer" style={{ background: "#c9a96e", color: "#0d1424", padding: "12px 30px", textDecoration: "none", fontWeight: "bold", borderRadius: "4px", display: "inline-block", marginTop: "20px" }}>GO TO SOURCE ↗</a>
               </>
             )}
             {modalType === 'about' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>ABOUT US</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>World Windows is a professional news terminal that scans global finance, geopolitics, and economy news in seconds. Our goal is to present the complex news flow on a single screen in its purest and fastest form.</p>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0", fontSize: "14px" }}>World Windows is a professional news terminal that scans global finance, geopolitics, and economy news in seconds. Our goal is to present the complex news flow on a single screen in its purest and fastest form.</p>
                 <h3 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'", marginTop: "35px", borderBottom: "1px solid #1e2d4a", paddingBottom: "10px", fontSize: "18px" }}>INTEGRATED GLOBAL SOURCES</h3>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "20px" }}>
                   {SOURCE_LINKS.map(s => (
@@ -323,14 +356,14 @@ export default function GlobalHaberler() {
             {modalType === 'privacy' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>PRIVACY POLICY</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>The privacy of your user data is important to us. Our site uses cookies to enhance user experience and serve advertising.</p>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0", fontSize: "14px" }}>The privacy of your user data is important to us. Our site uses cookies to enhance user experience and serve advertising.</p>
               </>
             )}
             {modalType === 'contact' && (
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>CONTACT</h2>
-                <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>For your questions, collaborations, or advertising proposals:</p>
-                <h3 style={{ color: "#fff" }}>worldwindowsnetwork@gmail.com</h3>
+                <p style={{ lineHeight: "1.8", color: "#8a9ab0", fontSize: "14px" }}>For your questions, collaborations, or advertising proposals:</p>
+                <h3 style={{ color: "#fff", fontSize: "16px", wordBreak: "break-all" }}>worldwindows.network@gmail.com</h3>
               </>
             )}
           </div>
@@ -338,10 +371,12 @@ export default function GlobalHaberler() {
       )}
 
       <header style={{ background: "#0d1424" }}>
-        <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 32px 5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="top-header-container" style={{ maxWidth: "1400px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div className="header-left-panel" style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
-             {/* LOGO SVG EKLEDİK */}
-             <WorldWindowsLogo />
+             {/* DEVASA GEOMETRİK W NETWORK LOGOSU */}
+             <div className="mobile-logo-svg" style={{ width: '75px', height: '75px', marginRight: '20px' }}>
+                <GeometricNetworkLogo />
+             </div>
              <div>
                <h1 className="header-title">WORLD WINDOWS</h1>
                <div className="header-subtitle">Global news to understand the world</div>
@@ -362,12 +397,11 @@ export default function GlobalHaberler() {
       </header>
 
       <main style={{ maxWidth: "1400px", margin: "0 auto" }}>
-        <section style={{ padding: "30px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "20px", padding: "0 32px", marginBottom: "15px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <section style={{ padding: "30px 0 10px" }}>
+          <div className="search-header-container">
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
               <span style={{ color: "#c9a96e", fontWeight: "900", fontSize: "12px", fontFamily: "'Source Sans 3', sans-serif", letterSpacing: "1px" }}>SEARCH:</span>
               
-              {/* YENİ ARAMA KUTUSU VE İÇİNDEKİ SİMGE */}
               <div className="search-input-wrapper">
                 <input 
                   type="text" 
@@ -377,9 +411,13 @@ export default function GlobalHaberler() {
                   onChange={e => setSearchTerm(e.target.value)}
                 />
                 <span className="search-input-icon">
+                  {/* ARAMA KUTUSU İÇİN MİNİ AĞ (NETWORK) İKONU */}
                   <svg width="18" height="18" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="10" y="10" width="80" height="80" stroke="#c9a96e" strokeWidth="8" rx="4"/>
-                    <circle cx="50" cy="50" r="10" fill="#c9a96e" />
+                    <path d="M50 10 L90 30 L90 70 L50 90 L10 70 L10 30 Z" stroke="#c9a96e" strokeWidth="6" />
+                    <circle cx="50" cy="50" r="15" fill="#c9a96e" />
+                    <line x1="50" y1="50" x2="50" y2="10" stroke="#c9a96e" strokeWidth="2" />
+                    <line x1="50" y1="50" x2="90" y2="70" stroke="#c9a96e" strokeWidth="2" />
+                    <line x1="50" y1="50" x2="10" y2="70" stroke="#c9a96e" strokeWidth="2" />
                   </svg>
                 </span>
               </div>
@@ -389,22 +427,26 @@ export default function GlobalHaberler() {
             </h2>
           </div>
           
-          <div className="news-slider">
-            {displayData.radar.map(n => (
-              <div key={n.id} className="news-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
-                <div className="time-badge" translate="no">{getRelativeTime(n.timestamp)}</div>
-                <img src={n.img} />
-                <div style={{ padding: "25px" }}>
-                  <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px", marginBottom: "8px" }}>{n.kaynak.toUpperCase()}</div>
-                  <h3 style={{ fontSize: "18px", color: "#e8e6e0", lineHeight: "1.3", margin: 0, fontFamily: "'Playfair Display'" }}>{n.baslik}</h3>
+          {searchTerm.trim() === "" && (
+            <div className="news-slider">
+              {displayData.radar.map(n => (
+                <div key={n.id} className="news-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
+                  <div className="time-badge" translate="no">{getRelativeTime(n.timestamp)}</div>
+                  <img src={n.img} />
+                  <div style={{ padding: "20px 25px" }}>
+                    <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px", marginBottom: "8px" }}>{n.kaynak.toUpperCase()}</div>
+                    <h3 style={{ fontSize: "18px", color: "#e8e6e0", lineHeight: "1.3", margin: 0, fontFamily: "'Playfair Display'" }}>{n.baslik}</h3>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
-        <section style={{ padding: "30px 0", borderTop: "1px solid #1e2d4a" }}>
-          <h2 style={{ fontSize: "20px", color: "#8a9ab0", padding: "0 32px", fontFamily: "'Playfair Display'", marginBottom: "20px" }}>ARCHIVE</h2>
+        <section style={{ padding: searchTerm.trim() === "" ? "10px 0 30px" : "0 0 30px 0", borderTop: searchTerm.trim() === "" ? "1px solid #1e2d4a" : "none" }}>
+          <h2 style={{ fontSize: "20px", color: "#8a9ab0", padding: "0 32px", fontFamily: "'Playfair Display'", marginBottom: "20px" }}>
+            {searchTerm.trim() !== "" ? `SEARCH RESULTS (${displayData.archive.length} FOUND)` : "ARCHIVE"}
+          </h2>
           <div className="archive-grid">
             {displayData.archive.map(n => (
               <div key={n.id} className="archive-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
@@ -415,6 +457,9 @@ export default function GlobalHaberler() {
               </div>
             ))}
           </div>
+          {searchTerm.trim() !== "" && displayData.archive.length === 0 && (
+             <div style={{ color: "#8a9ab0", fontStyle: "italic", padding: "0 32px" }}>No recent news found for "{searchTerm}" in this category.</div>
+          )}
         </section>
       </main>
 
