@@ -67,7 +67,6 @@ const TradingViewLiveTicker = memo(() => {
   return <div style={{ background: "#000", borderBottom: "1px solid #1e2d4a", minHeight: "46px" }} ref={container}></div>;
 });
 
-// ZAMANI HAFIZADA TUTAN MEKANİZMA
 let persistentTimeCache = {};
 try {
   const saved = localStorage.getItem('ww_time_cache');
@@ -81,7 +80,7 @@ export default function GlobalHaberler() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [modalType, setModalType] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [refreshBit, setRefreshBit] = useState(0); // Dakika başı arayüzü tazelemek için
+  const [refreshBit, setRefreshBit] = useState(0);
 
   useEffect(() => {
     document.title = "WORLD WINDOWS";
@@ -108,9 +107,10 @@ export default function GlobalHaberler() {
             const enOpt = document.createElement('option'); enOpt.value = 'en'; enOpt.textContent = 'English';
             combo.insertBefore(enOpt, combo.firstChild);
           }
+          // SADECE LANG YAZISI KALDI
           combo.options[0].textContent = 'LANG';
         }
-        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; cursor: pointer !important; height: 30px !important; width: 75px !important;";
+        combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: none !important; padding: 0px 8px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; font-family: 'Source Sans 3', sans-serif !important; text-transform: uppercase !important; cursor: pointer !important; height: 30px !important; width: 75px !important; outline: none !important; margin: 0 !important;";
       }
       const gadget = document.querySelector('.goog-te-gadget');
       if(gadget) { gadget.style.cssText = "color: transparent !important; font-size: 0px !important; display: flex !important; align-items: center !important;"; }
@@ -118,14 +118,13 @@ export default function GlobalHaberler() {
     return () => clearInterval(styleInterval);
   }, []);
 
-  // SAYACI VE DAKİKA GÖSTERİMİNİ İŞLETEN TİMER
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => { 
         if (prev <= 1) { fetchCollectiveNews(); return 60; } 
         return prev - 1; 
       });
-      setRefreshBit(b => b + 1); // Arayüzdeki "X mins ago" yazılarını her saniye tetikler
+      setRefreshBit(b => b + 1);
     }, 1000);
     return () => clearInterval(timer);
   }, [activeTag]);
@@ -134,7 +133,6 @@ export default function GlobalHaberler() {
 
   async function fetchCollectiveNews() {
     try {
-      const allFetchedNews = [];
       const targetUrls = activeTag.id === "all" ? ALL_URLS : activeTag.urls;
       const fetchPromises = targetUrls.map(async (url) => {
         try {
@@ -153,16 +151,11 @@ export default function GlobalHaberler() {
             let rawLink = (linkElem?.textContent || linkElem?.getAttribute("href") || "#").trim();
             if (rawLink.startsWith("/")) rawLink = feedOrigin + rawLink;
             if (rawLink.includes('bigpara.com')) rawLink = rawLink.replace('www.bigpara.com', 'bigpara.hurriyet.com.tr');
-            
-            // BENZERSİZ HABER KİMLİĞİ
             const newsId = btoa(unescape(encodeURIComponent(title.slice(0,50) + feedTitle)));
-            
-            // EĞER HABERİ İLK KEZ GÖRÜYORSAK ŞU ANKİ ZAMANI MÜHÜRLE
             if (!persistentTimeCache[newsId]) {
               persistentTimeCache[newsId] = Date.now();
               localStorage.setItem('ww_time_cache', JSON.stringify(persistentTimeCache));
             }
-
             return { 
               id: Math.random(), 
               baslik: title, 
