@@ -211,7 +211,6 @@ export default function GlobalHaberler() {
     
     const sorted = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
     
-    // ARAMA YAPILIYORSA RADARI GİZLE, TÜMÜNÜ ARŞİVE (IZGARA GÖRÜNÜMÜNE) BAS
     if (isSearching) {
       return { radar: [], archive: sorted };
     }
@@ -298,7 +297,7 @@ export default function GlobalHaberler() {
               <>
                 <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'" }}>CONTACT</h2>
                 <p style={{ lineHeight: "1.8", color: "#8a9ab0" }}>For your questions, collaborations, or advertising proposals:</p>
-                <h3 style={{ color: "#fff" }}>worldwindowsnetwork@gmail.com</h3>
+                <h3 style={{ color: "#fff" }}>worldwindows.network@gmail.com</h3>
               </>
             )}
           </div>
@@ -343,7 +342,6 @@ export default function GlobalHaberler() {
             </h2>
           </div>
           
-          {/* ARAMA YAPILMIYORSA RADARI GÖSTER */}
           {searchTerm.trim() === "" && (
             <div className="news-slider">
               {displayData.radar.map(n => (
@@ -360,7 +358,6 @@ export default function GlobalHaberler() {
           )}
         </section>
 
-        {/* ARAMA YAPILIRSA BOŞLUĞU AYARLA VE BAŞLIĞI DEĞİŞTİR */}
         <section style={{ padding: searchTerm.trim() === "" ? "30px 0" : "0 0 30px 0", borderTop: searchTerm.trim() === "" ? "1px solid #1e2d4a" : "none" }}>
           <h2 style={{ fontSize: "20px", color: "#8a9ab0", padding: "0 32px", fontFamily: "'Playfair Display'", marginBottom: "20px" }}>
             {searchTerm.trim() !== "" ? `SEARCH RESULTS (${displayData.archive.length} FOUND)` : "ARCHIVE"}
@@ -375,7 +372,6 @@ export default function GlobalHaberler() {
               </div>
             ))}
           </div>
-          {/* ARAMA SONUCU BOŞSA */}
           {searchTerm.trim() !== "" && displayData.archive.length === 0 && (
              <div style={{ color: "#8a9ab0", fontStyle: "italic", padding: "0 32px" }}>No recent news found for "{searchTerm}" in this category.</div>
           )}
