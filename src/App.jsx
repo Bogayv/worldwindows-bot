@@ -15,7 +15,6 @@ const GLOBAL_TAGS = [
   { id: "kap", label: "KAP & CORP", urls: ["https://www.kap.org.tr/tr/rss", "https://www.paraanaliz.com/feed/", "https://www.dunya.com/rss"]},
 ];
 
-// KAYNAKLARIN KURUMSAL RENK VE FONT LİSTESİ
 const SOURCE_LINKS = [
   { name: "BBC News", url: "https://www.bbc.com/news", color: "#EB3323", font: "sans-serif", weight: "900" },
   { name: "Reuters", url: "https://www.reuters.com", color: "#FF8000", font: "sans-serif", weight: "700" },
@@ -150,13 +149,18 @@ export default function GlobalHaberler() {
           
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-          const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 10);
-          const feedTitle = xmlDoc.querySelector("channel > title")?.textContent || "Global";
+          
+          // HEM RSS (item) HEM ATOM (entry) FORMATINI AYNI ANDA TARAYAN YENİ GÜÇLÜ RADAR
+          const items = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 15);
+          const feedTitle = xmlDoc.querySelector("channel > title, feed > title")?.textContent || "Global";
 
           return items.map(item => {
             const title = item.querySelector("title")?.textContent || "News";
-            const link = item.querySelector("link")?.textContent || "#";
-            const desc = item.querySelector("description")?.textContent || "";
+            // Atom linkleri <link href="..."> şeklinde olabilir
+            const linkElem = item.querySelector("link");
+            const link = linkElem?.textContent || linkElem?.getAttribute("href") || "#";
+            
+            const desc = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || item.querySelector("content")?.textContent || "";
             const cleanDesc = desc.replace(/<[^>]*>?/gm, '');
 
             let imgUrl = `https://picsum.photos/seed/${encodeURIComponent(title.slice(0,5))}/800/450`;
@@ -171,7 +175,7 @@ export default function GlobalHaberler() {
               }
             }
 
-            const pubDate = item.querySelector("pubDate")?.textContent;
+            const pubDate = item.querySelector("pubDate")?.textContent || item.querySelector("published")?.textContent || item.querySelector("updated")?.textContent;
             const timestamp = pubDate ? new Date(pubDate).getTime() : Date.now();
 
             return {
@@ -201,7 +205,7 @@ export default function GlobalHaberler() {
   const displayData = useMemo(() => {
     const filtered = activeTag.id === "all" ? newsPool : newsPool.filter(i => i.tagId === activeTag.id);
     const sorted = [...filtered].sort((a, b) => b.timestamp - a.timestamp);
-    return { radar: sorted.slice(0, 8), archive: sorted.slice(8, 500) }; // 500 HABERLİK LİMİT BURADA
+    return { radar: sorted.slice(0, 8), archive: sorted.slice(8, 500) };
   }, [newsPool, activeTag]);
 
   return (
@@ -225,7 +229,6 @@ export default function GlobalHaberler() {
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8,12,20,0.98); backdrop-filter: blur(15px); z-index: 10000; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: #0d1424; border: 1px solid #c9a96e; border-radius: 12px; max-width: 850px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 40px; }
         
-        /* === BALONCUK, BANT VE PENCERE YOK EDİCİ CSS === */
         body { top: 0px !important; position: static !important; margin-top: 0px !important; }
         iframe.goog-te-banner-frame { display: none !important; visibility: hidden !important; }
         .goog-te-banner-frame { display: none !important; }
@@ -236,7 +239,6 @@ export default function GlobalHaberler() {
         .goog-tooltip:hover { display: none !important; }
         .goog-text-highlight { background-color: transparent !important; border: none !important; box-shadow: none !important; }
 
-        /* === BUTON TASARIMLARI VE BAŞLIKLAR === */
         .header-left-panel { display: flex; flex-direction: column; }
         .header-title { font-family: 'Playfair Display', serif; font-size: 32px; color: #c9a96e; font-weight: 900; margin: 0; white-space: nowrap; }
         .header-subtitle { font-family: 'Playfair Display', serif; font-size: 15px; color: #c9a96e; font-style: italic; margin-top: 2px; letter-spacing: 0.5px; opacity: 0.9; }
@@ -353,12 +355,9 @@ export default function GlobalHaberler() {
           <div className="archive-grid">
             {displayData.archive.map(n => (
               <div key={n.id} className="archive-card" onClick={() => { setSelectedNews(n); setModalType('news'); }}>
-                
-                {/* --- KAYNAK BİLGİSİ ARŞİVE EKLENDİ --- */}
                 <div style={{ fontSize: "10px", color: "#c9a96e", marginBottom: "8px", fontWeight: "900" }} translate="no">
                   {n.kaynak.toUpperCase()} • #{n.tagLabel} • {getRelativeTime(n.timestamp)}
                 </div>
-                
                 <h4 style={{ fontSize: "16px", color: "#e8e6e0", lineHeight: "1.4", margin: 0 }}>{n.baslik}</h4>
               </div>
             ))}
