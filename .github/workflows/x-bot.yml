@@ -21,4 +21,4 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
         # BURASI KRİTİK: Dosyayı tam yoluyla çağırıyoruz
-        run: node ./scripts/x-bot.js
+        run: node scripts/scripts/x-bot.js
