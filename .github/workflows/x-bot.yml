@@ -1,24 +1,41 @@
 name: Auto Post News to X
+
 on:
-  workflow_dispatch: # Manuel başlatma butonu için
+  workflow_dispatch: # Manuel başlatma butonu
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *' # Her saat başı çalışır
 
 jobs:
   tweet-news:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - name: Install Dependencies
         run: npm install twitter-api-v2 rss-parser
-      - name: Run Bot
+
+      - name: Run X Bot
         env:
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
-        # BURASI KRİTİK: Dosyayı tam yoluyla çağırıyoruz
-        run: node scripts/scripts/x-bot.js
+        # Bu komut dosyayı projenin içinde nerede olursa olsun bulur ve çalıştırır
+        run: find . -name "x-bot.js" -exec node {} \;
+
+      - name: Commit posted.json
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          # Eğer posted.json dosyası varsa değişiklikleri kaydet
+          find . -name "posted.json" -exec git add {} \;
+          git commit -m "chore: update posted news [skip ci]" || echo "No changes to commit"
+          git push
