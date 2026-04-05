@@ -16,7 +16,8 @@ async function sendPushNotification(title, targetUrl) {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Authorization": "Basic os_v2_app_jq6rs52p7jbcpbtfowh6g3gooowupw43jhbe3onxaetgmdck6ys24vaq2rck3fxs7e4vaajz63b5val3oepfgutqq2l5b7ljkgatifa"
+        // ANAHTARINI BURAYA DİREKT YAZDIM:
+        "Authorization": "Basic os_v2_app_jq6rs52p7jbcpbtfowh6g3goonqzniep6z3uvcmxxtqkeizan3jquder72evprtidvzp3bxdlb7mjgqmsozsbs4js7vqg4hxih7j5fi"
       },
       body: JSON.stringify({
         app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
