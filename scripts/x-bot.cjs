@@ -81,8 +81,8 @@ async function scanNews() {
       for (const item of feed.items) {
         const link = (item.link || "").trim();
         
-        // Sunucu limitini korumak için toplamda 10 habere kadar gönderim
-        if (link && !postedUrls.includes(link) && count < 10) {
+        // HIZLANDIRILMIŞ LİMİT: Tur başına 25 habere kadar gönderim
+        if (link && !postedUrls.includes(link) && count < 25) {
           
           const safeTitle = (item.title || "News").slice(0, 50);
           const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
@@ -94,7 +94,7 @@ async function scanNews() {
           postedUrls.push(link);
           count++;
           
-          // Spam koruması
+          // Spam koruması (5 sn)
           await new Promise(r => setTimeout(r, 5000));
         }
       }
@@ -103,6 +103,6 @@ async function scanNews() {
   console.log(`✅ Bu turda ${count} yeni haber gönderildi.`);
 }
 
-// 10 Dakikada bir çalıştır (34 site için en güvenli aralık)
+// HIZLANDIRILMIŞ SÜRE: 5 Dakikada bir çalıştır
 scanNews();
-setInterval(scanNews, 10 * 60 * 1000);
+setInterval(scanNews, 5 * 60 * 1000);
