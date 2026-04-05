@@ -1,25 +1,24 @@
-const Redis = require('ioredis');
 const axios = require('axios');
+const Redis = require('ioredis');
 
 // --- YAPILANDIRMA ---
 const CONFIG = {
-    // Upstash'ten aldığın TCP bağlantı adresi
-    // Render Environment Variables (UPSTASH_REDIS_REST_URL ve TOKEN) üzerinden otomatik kurarız
+    // Upstash Redis Bağlantısı (Environment Variables'dan otomatik alır)
     REDIS_URL: process.env.UPSTASH_REDIS_REST_URL.replace("https://", "rediss://") + ":" + process.env.UPSTASH_REDIS_REST_TOKEN + "@" + process.env.UPSTASH_REDIS_REST_URL.split("//")[1],
-    ONESIGNAL_APP_ID: "4c3d1977-4ffa-4227-8665-758fe36cce73",
+    ONESIGNAL_APP_ID: "4c3d1977-4ffa-4227-8665-758fe36cce73", // DİKKAT: Buraya OneSignal App ID'ni yazdım
     ONESIGNAL_KEY: process.env.ONESIGNAL_KEY,
-    FETCH_INTERVAL: 2 * 60 * 1000, 
-    BATCH_LIMIT: 10,
-    EXPIRE_TIME: 259200
+    FETCH_INTERVAL: 2 * 60 * 1000, // 2 Dakikada Bir Tarama
+    BATCH_LIMIT: 10,               // Her Turda Maksimum 10 Haber Gönderimi
+    EXPIRE_TIME: 259200            // Haber Hafıza Süresi (3 Gün - Saniye cinsinden)
 };
 
 const redis = new Redis(CONFIG.REDIS_URL);
 
 async function sendNotification(news) {
-    // Senin haber yapındaki ID'yi veya başlığı benzersiz kimlik olarak kullanıyoruz
     const newsId = news.id || news._id;
     const cacheKey = `sent_news:${newsId}`;
 
+    // Redis kontrolü: Bu haber daha önce gönderildi mi?
     const isSent = await redis.get(cacheKey);
     if (isSent) return false;
 
@@ -30,8 +29,8 @@ async function sendNotification(news) {
                 app_id: CONFIG.ONESIGNAL_APP_ID,
                 included_segments: ["All"],
                 headings: { en: "World Windows - Son Dakika", tr: "World Windows - Son Dakika" },
-                contents: { en: news.baslik || news.title, tr: news.baslik || news.title },
-                // KULLANICIYI SENİN SİTENE ÇEKEN LİNK
+                contents: { en: news.title || news.baslik, tr: news.title || news.baslik },
+                // KRİTİK: Tarayıcıyı ana sayfada bırakmayıp doğrudan haber detayına zorlayan link yapısı
                 url: `https://worldwindows.network/news-detail/${newsId}?utm_source=push&utm_medium=notification&t=${Date.now()}`
             },
             {
@@ -43,8 +42,9 @@ async function sendNotification(news) {
         );
 
         if (response.data.id) {
+            // Haber başarıyla gönderildi, Redis'e kaydet (3 gün sonra kendi kendini silecek)
             await redis.set(cacheKey, "true", "EX", CONFIG.EXPIRE_TIME);
-            console.log(`✅ Trafik Yönlendirildi: ${news.baslik || news.title}`);
+            console.log(`✅ Gönderildi: ${news.title || news.baslik}`);
             return true;
         }
     } catch (error) {
@@ -54,42 +54,31 @@ async function sendNotification(news) {
 }
 
 async function startBot() {
-    console.log(`📡 Robot Aktif: Doğrudan Upstash Redis (sincere-primate) taranıyor...`);
+    console.log(`📡 Haber taraması başlatıldı... (Her ${CONFIG.FETCH_INTERVAL / 60000} dakikada bir)`);
     
     try {
-        // Sitenin Redis'e kaydettiği haber havuzunu çekiyoruz
-        // Siten muhtemelen 'ww_news_pool' veya benzeri bir isimle kaydediyor.
-        // Eğer çekemezse API'ye (Cache-Buster ile) yedek olarak bakar.
-        
-        let allNews = [];
-        const redisData = await redis.get("latest_news_pool"); // Genel isimlendirme
-        
-        if (redisData) {
-            allNews = JSON.parse(redisData);
-        } else {
-            // Redis boşsa veya anahtar farklıysa API'den taze çekim yap
-            const freshUrl = `https://worldwindows.network/api/news?_t=${Date.now()}`;
-            const response = await axios.get(freshUrl, { headers: { 'Cache-Control': 'no-cache' } }); 
-            allNews = response.data.news || response.data;
-        }
-
-        console.log(`📥 Toplam ${allNews.length} haber analiz ediliyor...`);
+        // Haberleri çektiğimiz API veya Proxy kaynağı
+        const response = await axios.get("https://worldwindows.network/api/news"); 
+        const allNews = response.data.news || response.data;
         
         let count = 0;
         for (const news of allNews) {
             if (count >= CONFIG.BATCH_LIMIT) break;
+            
             const sent = await sendNotification(news);
             if (sent) {
                 count++;
+                // OneSignal API'sini yormamak ve banlanmamak için her gönderim arası 5 saniye bekleme
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
         }
-        console.log(`🔄 Tur tamamlandı. Gönderilen: ${count}`);
+        console.log(`🔄 Tur tamamlandı. ${count} yeni haber gönderildi.`);
     } catch (error) {
-        console.error("⚠️ Robot Hatası:", error.message);
+        console.error("⚠️ Haber çekme hatası:", error.message);
     }
 
     setTimeout(startBot, CONFIG.FETCH_INTERVAL);
 }
 
+// Robotu çalıştır
 startBot();
