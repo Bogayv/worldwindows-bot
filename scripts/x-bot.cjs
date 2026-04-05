@@ -23,9 +23,9 @@ async function sendPushNotification(title, targetUrl, uniqueId) {
         included_segments: ["Total Subscriptions"],
         headings: { "en": "WORLD WINDOWS", "tr": "WORLD WINDOWS" },
         contents: { "en": title, "tr": title },
-        url: targetUrl, // ARTIK DOĞRUDAN SENİN SİTENE YÖNLENECEK
-        web_push_topic: uniqueId,
-        android_group: uniqueId
+        url: targetUrl, // DOĞRUDAN SENİN SİTENDEKİ HABER DETAY SAYFASI
+        web_push_topic: uniqueId, // BİLDİRİMLERİN EZİLMESİNİ ENGELLER
+        android_group: uniqueId   // BİLDİRİMLERİN EZİLMESİNİ ENGELLER
       })
     });
     const data = await response.json();
@@ -47,19 +47,24 @@ async function scanNews() {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
+        
+        // 10 Habere kadar gönderim
         if (link && !postedUrls.includes(link) && count < 10) {
-          // Bildirimlerin ezilmemesi için benzersiz kimlik
-          const uniqueId = Buffer.from(item.title || "news").toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
           
-          // TRAFİĞİ KENDİ SİTENE ÇEKECEK URL YAPISI
-          // Haberin orijinal linkini bir parametre olarak kendi sitene yolluyoruz.
-          const worldWindowsUrl = `https://worldwindows.network/?newsUrl=${encodeURIComponent(link)}`;
+          // Sitenin beklediği Base64 formatındaki newsId'yi tam uyumlu şekilde üretiyoruz
+          const safeTitle = (item.title || "News").slice(0, 50);
+          const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
           
-          // Orijinal link yerine kendi sitemizin linkini yolluyoruz
-          await sendPushNotification(item.title, worldWindowsUrl, uniqueId);
+          // Trafiği senin sitene çekecek ve spesifik haberi açacak nihai URL
+          const targetUrl = `https://www.worldwindows.network/?newsId=${newsId}`;
+          
+          // Haberi Gönder
+          await sendPushNotification(item.title, targetUrl, newsId);
           
           postedUrls.push(link);
           count++;
+          
+          // Spam koruması
           await new Promise(r => setTimeout(r, 5000));
         }
       }
