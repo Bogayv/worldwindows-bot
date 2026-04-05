@@ -54,7 +54,6 @@ async function sendPushNotification(title, targetUrl, pushTopic) {
       })
     });
     const data = await response.json();
-    // Eski güvenilir log formatına geri döndük
     console.log(`📡 OneSignal Yanıtı: ${JSON.stringify(data)}`);
   } catch (e) { console.error("❌ Hata:", e.message); }
 }
@@ -105,22 +104,20 @@ async function scanNews() {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
-        const title = (item.title || "News").trim();
         
         const redisKey = Buffer.from(link).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
         const isAlreadyPosted = postedUrls.includes(link) || await checkRedis(redisKey);
         
         if (link && !isAlreadyPosted && count < 25) {
           
-          // Sitenin tam olarak beklediği 24 karakterlik kesilmiş ID (Özel karakterler dahil)
-          const newsId = Buffer.from(title).toString('base64').slice(0, 24);
+          // Sitenin kusursuz açtığı o orijinal formüle geri döndük
+          const safeTitle = (item.title || "News").slice(0, 50);
+          const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
           
-          const targetUrl = `https://www.worldwindows.network/?newsId=${encodeURIComponent(newsId)}`;
+          const targetUrl = `https://www.worldwindows.network/?newsId=${newsId}`;
+          const pushTopic = newsId; // Hem URL hem OneSignal kimliği aynı ve temiz
           
-          // OneSignal ID'sinin hata vermemesi için temizlenmiş konu başlığı
-          const pushTopic = newsId.replace(/[^a-zA-Z0-9]/g, "");
-          
-          await sendPushNotification(title, targetUrl, pushTopic);
+          await sendPushNotification(item.title, targetUrl, pushTopic);
           
           postedUrls.push(link);
           await saveToRedis(redisKey);
