@@ -1,28 +1,26 @@
 const Parser = require('rss-parser');
 const http = require('http');
 
-// --- RENDER İÇİN CANLILIK SİNYALİ (PORT BINDING) ---
 const server = http.createServer((req, res) => {
   res.writeHead(200);
-  res.end('Bot is running...');
+  res.end('World Windows Pro Bot is Active');
 });
 server.listen(process.env.PORT || 3000);
 
-// --- HABER BOTU AYARLARI ---
 const ONESIGNAL_APP_ID = "4c3d1977-4ffa-4227-8665-758fe36cce73";
 const ONESIGNAL_REST_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3goonqzniep6z3uvcmxxtqkeizan3jquder72evprtidvzp3bxdlb7mjgqmsozsbs4js7vqg4hxih7j5fi";
 
+// Kaynakları zenginleştirdik
 const RSS_FEEDS = [
   "https://www.ft.com/?format=rss",
   "https://www.bloomberght.com/rss",
-  "https://www.reutersagency.com/feed/",
-  "https://www.cnbc.com/id/10000664/device/rss/rss.html"
+  "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+  "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", // Wall Street Journal
+  "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069", // CNBC Investing
+  "https://www.investing.com/rss/news.rss" // Investing.com
 ];
 
-const parser = new Parser({
-  headers: { 'User-Agent': 'Mozilla/5.0' }
-});
-
+const parser = new Parser({ headers: { 'User-Agent': 'Mozilla/5.0' } });
 let postedUrls = [];
 
 async function sendPushNotification(title, targetUrl, newsId) {
@@ -42,13 +40,13 @@ async function sendPushNotification(title, targetUrl, newsId) {
         included_segments: ["Total Subscriptions"]
       })
     });
-    console.log(`✅ Bildirim Gitti: ${title.substring(0,30)}...`);
+    console.log(`🚀 JET GÖNDERİM: ${title.substring(0,40)}...`);
   } catch (e) { console.error("❌ Hata:", e.message); }
 }
 
 async function scanNews() {
-  console.log(`🔍 [${new Date().toLocaleTimeString()}] Haberler taranıyor...`);
-  let newItemsFound = 0;
+  console.log(`⚡️ [${new Date().toLocaleTimeString()}] Seri tarama başladı...`);
+  let totalSent = 0;
   for (const feedUrl of RSS_FEEDS) {
     try {
       const feed = await parser.parseURL(feedUrl);
@@ -61,16 +59,15 @@ async function scanNews() {
           
           await sendPushNotification(item.title, mySiteUrl, newsId);
           postedUrls.push(link);
-          newItemsFound++;
-          await new Promise(r => setTimeout(r, 2000));
-          if (newItemsFound >= 3) break; 
+          totalSent++;
+          await new Promise(r => setTimeout(r, 1000)); // Hızlı gönderim
         }
       }
-    } catch (e) { console.log(`⚠️ RSS okunamadı: ${feedUrl}`); }
+    } catch (e) { console.log(`⚠️ Kaynak beklemede: ${feedUrl}`); }
   }
-  if (postedUrls.length > 100) postedUrls = postedUrls.slice(-50);
+  if (postedUrls.length > 300) postedUrls = postedUrls.slice(-200);
 }
 
-// Başlat ve Her 15 Dakikada Bir Çalıştır
+// 2 DAKİKADA BİR TARAMA (Ultra Hız)
 scanNews();
-setInterval(scanNews, 15 * 60 * 1000);
+setInterval(scanNews, 2 * 60 * 1000);
