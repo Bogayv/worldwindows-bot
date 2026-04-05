@@ -1,6 +1,6 @@
-const axios = require('axios');
-const Redis = require('ioredis');
-const http = require('http'); // Render'ın fişi çekmesini engellemek için eklendi
+import axios from 'axios';
+import Redis from 'ioredis';
+import http from 'http';
 
 // Upstash'in talep ettiği tam bağlantı formatı
 const rawHost = (process.env.UPSTASH_REDIS_REST_URL || "").replace("https://", "");
@@ -21,7 +21,7 @@ const redis = new Redis(CONFIG.REDIS_URL);
 
 // HATA YAKALAYICI: Şifre yanlışsa veya koparsa robot çökmesin
 redis.on('error', (err) => {
-    console.error('❌ Redis Bağlantı Hatası:', err.message);
+    console.error('❌ Redis Baglanti Hatasi:', err.message);
 });
 
 async function sendNotification(news) {
@@ -53,20 +53,20 @@ async function sendNotification(news) {
             }
         );
 
-        if (response.data.id) {
+        if (response.data && response.data.id) {
             // Haber başarıyla gönderildi, Redis'e kaydet (3 gün sonra kendi kendini silecek)
             await redis.set(cacheKey, "true", "EX", CONFIG.EXPIRE_TIME);
-            console.log(`✅ Gönderildi: ${news.title || news.baslik}`);
+            console.log(`✅ Gonderildi: ${news.title || news.baslik}`);
             return true;
         }
     } catch (error) {
-        console.error("❌ OneSignal Hatası:", error.response?.data || error.message);
+        console.error("❌ OneSignal Hatasi:", error.response?.data || error.message);
     }
     return false;
 }
 
 async function startBot() {
-    console.log(`📡 Haber taraması başlatıldı... (Her ${CONFIG.FETCH_INTERVAL / 60000} dakikada bir)`);
+    console.log(`📡 Haber taramasi baslatildi... (Her ${CONFIG.FETCH_INTERVAL / 60000} dakikada bir)`);
     
     try {
         // Haberleri çektiğimiz API veya Proxy kaynağı (SENİN İSTEDİĞİN GİBİ ANA SİTENDEN ÇEKİYOR)
@@ -91,9 +91,9 @@ async function startBot() {
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
         }
-        console.log(`🔄 Tur tamamlandı. ${count} yeni haber gönderildi.`);
+        console.log(`🔄 Tur tamamlandi. ${count} yeni haber gonderildi.`);
     } catch (error) {
-        console.error("⚠️ Haber çekme hatası:", error.message);
+        console.error("⚠️ Haber cekme hatasi:", error.message);
     }
 
     setTimeout(startBot, CONFIG.FETCH_INTERVAL);
@@ -108,5 +108,5 @@ http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.end('Robot Calisiyor\n');
 }).listen(port, () => {
-    console.log(`🌐 Render için sahte port (${port}) açıldı. Fiş çekilmeyecek.`);
+    console.log(`🌐 Render icin port (${port}) acildi. Fis cekilmeyecek.`);
 });
