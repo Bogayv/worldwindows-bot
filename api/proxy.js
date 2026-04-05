@@ -1,16 +1,19 @@
 export default async function handler(req, res) {
-  const { url, lang } = req.query;
-  if (!url) return res.status(400).json({ error: "URL required" });
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'URL is required' });
 
   try {
-    const response = await fetch(url);
+    // Axios yerine sistemin kendi %100 çalışan fetch yapısını kullanıyoruz
+    const response = await fetch(url, { 
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    
     const xmlText = await response.text();
     
-    // Tarayıcıya haberin "zaten çevrilmiş" olduğunu söyleyen başlığı ekle
-    res.setHeader('Content-Type', 'text/xml');
+    res.setHeader('Content-Type', 'text/xml; charset=utf-8');
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
-    res.status(200).send(xmlText);
+    return res.status(200).send(xmlText);
   } catch (error) {
-    res.status(500).json({ error: "Fetch failed" });
+    return res.status(500).json({ error: 'Proxy fetch failed' });
   }
 }
