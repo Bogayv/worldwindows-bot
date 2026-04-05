@@ -1,7 +1,7 @@
 const Parser = require('rss-parser');
 const http = require('http');
 
-http.createServer((req, res) => { res.writeHead(200); res.end('World Windows Bot Stable'); }).listen(process.env.PORT || 3000);
+http.createServer((req, res) => { res.writeHead(200); res.end('Stable Bot'); }).listen(process.env.PORT || 3000);
 
 const ONESIGNAL_APP_ID = "4c3d1977-4ffa-4227-8665-758fe36cce73";
 const ONESIGNAL_REST_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3goonqzniep6z3uvcmxxtqkeizan3jquder72evprtidvzp3bxdlb7mjgqmsozsbs4js7vqg4hxih7j5fi";
@@ -32,41 +32,37 @@ async function sendPushNotification(title, targetUrl, newsId) {
         web_push_topic: newsId
       })
     });
-    return await response.json();
-  } catch (e) { return { error: e.message }; }
+    const data = await response.json();
+    console.log(`📡 OneSignal Yanıtı: ${JSON.stringify(data)}`);
+  } catch (e) { console.error("❌ Hata:", e.message); }
 }
 
 async function scanNews() {
-  console.log(`🔍 [${new Date().toLocaleTimeString()}] Kontrol ediliyor...`);
-  let sentInThisTurn = 0;
+  console.log(`🔍 [${new Date().toLocaleTimeString()}] Tarama...`);
+  let sentCount = 0;
 
   for (const feedUrl of RSS_FEEDS) {
     try {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
-        
-        // Sadece yeni linkleri ve tur başına max 5 haberi gönder
-        if (link && !postedUrls.includes(link) && sentInThisTurn < 5) {
+        // Tur başına max 3 haber, spam engellemek için
+        if (link && !postedUrls.includes(link) && sentCount < 3) {
           const safeTitle = (item.title || "News").slice(0, 50);
           const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
           
-          const result = await sendPushNotification(item.title, `https://worldwindows.network/?newsId=${newsId}`, newsId);
-          console.log(`✅ Bildirim İsteği: ${item.title.substring(0,30)}... | Sonuç: ${JSON.stringify(result)}`);
-          
+          await sendPushNotification(item.title, `https://worldwindows.network/?newsId=${newsId}`, newsId);
           postedUrls.push(link);
-          sentInThisTurn++;
+          sentCount++;
           
-          // OneSignal'ı yormamak için 3 saniye bekle
-          await new Promise(r => setTimeout(r, 3000));
+          // OneSignal'ı yormamak için 5 saniye bekle
+          await new Promise(r => setTimeout(r, 5000));
         }
       }
-    } catch (e) { console.log(`⚠️ Hata: ${feedUrl}`); }
+    } catch (e) { console.log(`⚠️ Kaynak Hatası: ${feedUrl}`); }
   }
-  
-  if (postedUrls.length > 200) postedUrls = postedUrls.slice(-150);
 }
 
-// 5 dakikada bir tarama (En sağlıklı hız)
+// 4 dakikada bir tarama (En güvenli aralık)
 scanNews();
-setInterval(scanNews, 5 * 60 * 1000);
+setInterval(scanNews, 4 * 60 * 1000);
