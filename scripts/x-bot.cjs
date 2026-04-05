@@ -1,15 +1,15 @@
 const Parser = require('rss-parser');
 const http = require('http');
 
-// Render Port Sabitleme (Kritik)
+// Render Port Sabitleme
 http.createServer((req, res) => {
   res.writeHead(200);
-  res.end('World Windows Bot is Active');
+  res.end('World Windows Stable Bot');
 }).listen(process.env.PORT || 3000);
 
 const ONESIGNAL_APP_ID = "4c3d1977-4ffa-4227-8665-758fe36cce73";
-// BURAYA ELİNDEKİ ANAHTARI YAPIŞTIR
-const ONESIGNAL_REST_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3gooowupw43jhbe3onxaetgmdck6ys24vaq2rck3fxs7e4vaajz63b5val3oepfgutqq2l5b7ljkgatifa";
+// BURAYA SADECE ANAHTARINI KOY (Örn: NmY0Z...)
+const MY_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3gooowupw43jhbe3onxaetgmdck6ys24vaq2rck3fxs7e4vaajz63b5val3oepfgutqq2l5b7ljkgatifa";
 
 const RSS_FEEDS = [
   "https://www.ft.com/?format=rss",
@@ -20,21 +20,21 @@ const RSS_FEEDS = [
 const parser = new Parser({ headers: { 'User-Agent': 'Mozilla/5.0' } });
 let postedUrls = [];
 
-async function sendPushNotification(title, targetUrl, newsId) {
+async function sendPushNotification(title, targetUrl) {
   try {
     const response = await fetch("https://onesignal.com/api/v1/notifications", {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Authorization": `Basic ${ONESIGNAL_REST_KEY}`
+        // HATA BURADAYDI: "Basic " ifadesini ve boşluğu buraya sabitledim.
+        "Authorization": "Basic " + MY_KEY.trim()
       },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
         included_segments: ["Total Subscriptions"],
         headings: { "en": "WORLD WINDOWS", "tr": "WORLD WINDOWS" },
         contents: { "en": title, "tr": title },
-        url: targetUrl,
-        web_push_topic: newsId
+        url: targetUrl
       })
     });
     const data = await response.json();
@@ -50,20 +50,17 @@ async function scanNews() {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
-        // Hafızadaki haberi gönderme ve tur başına max 3 haberle sınırlı kal (Spam koruması)
-        if (link && !postedUrls.includes(link) && count < 3) {
-          const safeTitle = (item.title || "News").slice(0, 50);
-          const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
-          await sendPushNotification(item.title, `https://worldwindows.network/?newsId=${newsId}`, newsId);
+        // Spam koruması: Açılışta sadece en taze 2 haberi gönder
+        if (link && !postedUrls.includes(link) && count < 2) {
+          await sendPushNotification(item.title, link);
           postedUrls.push(link);
           count++;
           await new Promise(r => setTimeout(r, 5000));
         }
       }
-    } catch (e) { console.log(`⚠️ Hata: ${feedUrl}`); }
+    } catch (e) { console.log(`⚠️ Kaynak Hatası: ${feedUrl}`); }
   }
 }
 
-// 10 dakikada bir (En güvenli ve kararlı aralık)
 scanNews();
 setInterval(scanNews, 10 * 60 * 1000);
