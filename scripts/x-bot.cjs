@@ -10,10 +10,7 @@ http.createServer((req, res) => {
 const parser = new Parser({ headers: { 'User-Agent': 'Mozilla/5.0' } });
 let postedUrls = [];
 
-async function sendPushNotification(title, targetUrl) {
-  // Her haber için benzersiz bir kimlik (ID) oluşturuyoruz
-  const uniqueId = Buffer.from(title || "news").toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
-
+async function sendPushNotification(title, targetUrl, uniqueId) {
   try {
     const response = await fetch("https://onesignal.com/api/v1/notifications", {
       method: "POST",
@@ -26,8 +23,7 @@ async function sendPushNotification(title, targetUrl) {
         included_segments: ["Total Subscriptions"],
         headings: { "en": "WORLD WINDOWS", "tr": "WORLD WINDOWS" },
         contents: { "en": title, "tr": title },
-        url: targetUrl,
-        // BU İKİ SATIR BİLDİRİMLERİN ÜST ÜSTE BİNMESİNİ ENGELLER:
+        url: targetUrl, // ARTIK DOĞRUDAN SENİN SİTENE YÖNLENECEK
         web_push_topic: uniqueId,
         android_group: uniqueId
       })
@@ -52,13 +48,22 @@ async function scanNews() {
       for (const item of feed.items) {
         const link = (item.link || "").trim();
         if (link && !postedUrls.includes(link) && count < 10) {
-          await sendPushNotification(item.title, link);
+          // Bildirimlerin ezilmemesi için benzersiz kimlik
+          const uniqueId = Buffer.from(item.title || "news").toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
+          
+          // TRAFİĞİ KENDİ SİTENE ÇEKECEK URL YAPISI
+          // Haberin orijinal linkini bir parametre olarak kendi sitene yolluyoruz.
+          const worldWindowsUrl = `https://worldwindows.network/?newsUrl=${encodeURIComponent(link)}`;
+          
+          // Orijinal link yerine kendi sitemizin linkini yolluyoruz
+          await sendPushNotification(item.title, worldWindowsUrl, uniqueId);
+          
           postedUrls.push(link);
           count++;
           await new Promise(r => setTimeout(r, 5000));
         }
       }
-    } catch (e) { }
+    } catch (e) { console.log("⚠️ Kaynak hatası"); }
   }
   console.log(`✅ Bu turda ${count} yeni haber gönderildi.`);
 }
