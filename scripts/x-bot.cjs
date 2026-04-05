@@ -4,14 +4,39 @@ const http = require('http');
 // Render Port Sabitleme
 http.createServer((req, res) => {
   res.writeHead(200);
-  res.end('World Windows Multi-Source Bot is Active');
+  res.end('World Windows Multi-Source Bot with Redis is Active');
 }).listen(process.env.PORT || 3000);
 
-// Bazı sitelerin bot engellemesini aşmak için tam tarayıcı kimliği eklendi
 const parser = new Parser({ 
   headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } 
 });
+
+// Yedek yerel hafıza (Redis'e anlık ulaşılamazsa diye)
 let postedUrls = [];
+
+// Redis Kontrol Fonksiyonu: "Bu haber daha önce gönderildi mi?"
+async function checkRedis(key) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return false;
+  try {
+    const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/${key}`, {
+      headers: { "Authorization": `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+    });
+    const data = await res.json();
+    return data.result !== null; 
+  } catch (e) {
+    return false;
+  }
+}
+
+// Redis Kayıt Fonksiyonu: Haberi 3 Günlüğüne (259200 saniye) Buluta Kaydet
+async function saveToRedis(key) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return;
+  try {
+    await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/${key}/1/EX/259200`, {
+      headers: { "Authorization": `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+    });
+  } catch (e) { }
+}
 
 async function sendPushNotification(title, targetUrl, pushTopic) {
   try {
@@ -31,14 +56,13 @@ async function sendPushNotification(title, targetUrl, pushTopic) {
         android_group: pushTopic   
       })
     });
-    // Log ekranı çok şişmesin diye yanıtı basitleştirdik
     const data = await response.json();
     if(data.id) console.log(`📡 Gönderildi: ${title.slice(0, 30)}...`);
   } catch (e) { console.error("❌ Hata:", e.message); }
 }
 
 async function scanNews() {
-  console.log(`🔍 [${new Date().toLocaleTimeString()}] Çoklu Kaynak Taraması Başladı...`);
+  console.log(`🔍 [${new Date().toLocaleTimeString()}] Çoklu Kaynak Taraması (Redis Destekli) Başladı...`);
   let count = 0;
   
   const feeds = [
@@ -85,27 +109,31 @@ async function scanNews() {
         const link = (item.link || "").trim();
         const title = (item.title || "News").trim();
         
-        if (link && !postedUrls.includes(link) && count < 25) {
+        // Linki Redis için özel bir şifreye çeviriyoruz
+        const redisKey = Buffer.from(link).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
+        
+        // Eğer link bulutta (Redis) VEYA yerel hafızada varsa bu haberi pas geçiyoruz
+        const isAlreadyPosted = postedUrls.includes(link) || await checkRedis(redisKey);
+        
+        if (link && !isAlreadyPosted && count < 25) {
           
-          // 1. SİTEN İÇİN: Tam ve kesilmemiş Base64 (Özel karakterler dahil)
           const exactNewsId = Buffer.from(title).toString('base64');
-          
-          // EncodeURIComponent ile linkteki özel karakterlerin (+, /, =) kırılmasını önlüyoruz
           const targetUrl = `https://www.worldwindows.network/?newsId=${encodeURIComponent(exactNewsId)}`;
-          
-          // 2. ONESIGNAL İÇİN: Gruplama mekanizması hata vermesin diye temizlenmiş kısa ID
           const pushTopic = exactNewsId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 30);
           
           await sendPushNotification(title, targetUrl, pushTopic);
           
+          // Gönderilen haberi bir daha asla göndermemek üzere kaydediyoruz
           postedUrls.push(link);
+          await saveToRedis(redisKey);
+          
           count++;
           
           await new Promise(r => setTimeout(r, 5000));
         }
       }
     } catch (e) { 
-      // Hata veren (bot korumalı) siteler logları kirletmesin diye sessize alındı
+      // Hata veren siteler sistemi durdurmasın diye atlanıyor
     }
   }
   console.log(`✅ Bu turda ${count} yeni haber gönderildi.`);
