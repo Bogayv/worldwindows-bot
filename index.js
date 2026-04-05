@@ -10,7 +10,7 @@ const CONFIG = {
     ONESIGNAL_APP_ID: "4c3d1977-4ffa-4227-8665-758fe36cce73",
     ONESIGNAL_KEY: process.env.ONESIGNAL_KEY,
     FETCH_INTERVAL: 1.5 * 60 * 1000, // 1.5 Dakikaya indirildi (Hızlandık)
-    BATCH_LIMIT: 30,                // 10'dan 30'a çıkarıldı (Görüş alanı genişledi)
+    BATCH_LIMIT: 3,                // 10'dan 30'a çıkarıldı (Görüş alanı genişledi)
     EXPIRE_TIME: 259200
 };
 
