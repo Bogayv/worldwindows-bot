@@ -9,7 +9,7 @@ http.createServer((req, res) => {
 
 const ONESIGNAL_APP_ID = "4c3d1977-4ffa-4227-8665-758fe36cce73";
 // BURAYA ELİNDEKİ ANAHTARI YAPIŞTIR
-const ONESIGNAL_REST_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3goonqzniep6z3uvcmxxtqkeizan3jquder72evprtidvzp3bxdlb7mjgqmsozsbs4js7vqg4hxih7j5fi";
+const ONESIGNAL_REST_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3gooowupw43jhbe3onxaetgmdck6ys24vaq2rck3fxs7e4vaajz63b5val3oepfgutqq2l5b7ljkgatifa";
 
 const RSS_FEEDS = [
   "https://www.ft.com/?format=rss",
