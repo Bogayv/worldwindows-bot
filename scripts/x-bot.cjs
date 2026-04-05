@@ -11,6 +11,9 @@ const parser = new Parser({ headers: { 'User-Agent': 'Mozilla/5.0' } });
 let postedUrls = [];
 
 async function sendPushNotification(title, targetUrl) {
+  // Her haber için benzersiz bir kimlik (ID) oluşturuyoruz
+  const uniqueId = Buffer.from(title || "news").toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
+
   try {
     const response = await fetch("https://onesignal.com/api/v1/notifications", {
       method: "POST",
@@ -23,7 +26,10 @@ async function sendPushNotification(title, targetUrl) {
         included_segments: ["Total Subscriptions"],
         headings: { "en": "WORLD WINDOWS", "tr": "WORLD WINDOWS" },
         contents: { "en": title, "tr": title },
-        url: targetUrl
+        url: targetUrl,
+        // BU İKİ SATIR BİLDİRİMLERİN ÜST ÜSTE BİNMESİNİ ENGELLER:
+        web_push_topic: uniqueId,
+        android_group: uniqueId
       })
     });
     const data = await response.json();
@@ -45,12 +51,10 @@ async function scanNews() {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
-        // TUR BAŞINA MAX 10 HABER
         if (link && !postedUrls.includes(link) && count < 10) {
           await sendPushNotification(item.title, link);
           postedUrls.push(link);
           count++;
-          // HABERLER ARASI 5 SANİYE MOLA (OneSignal güvenliği için)
           await new Promise(r => setTimeout(r, 5000));
         }
       }
@@ -59,6 +63,5 @@ async function scanNews() {
   console.log(`✅ Bu turda ${count} yeni haber gönderildi.`);
 }
 
-// HER 2 DAKİKADA BİR ÇALIŞ (Ruhuna uygun hız!)
 scanNews();
 setInterval(scanNews, 2 * 60 * 1000);
