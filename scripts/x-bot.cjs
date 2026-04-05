@@ -1,7 +1,11 @@
 const Parser = require('rss-parser');
 const http = require('http');
 
-http.createServer((req, res) => { res.writeHead(200); res.end('System Ready'); }).listen(process.env.PORT || 3000);
+// RENDER'IN KİLİTLENMESİNİ ÖNLEYEN CANLILIK SİNYALİ
+http.createServer((req, res) => { 
+  res.writeHead(200); 
+  res.end('World Windows Bot is Live'); 
+}).listen(process.env.PORT || 3000);
 
 const ONESIGNAL_APP_ID = "4c3d1977-4ffa-4227-8665-758fe36cce73";
 const ONESIGNAL_REST_KEY = "os_v2_app_jq6rs52p7jbcpbtfowh6g3goonqzniep6z3uvcmxxtqkeizan3jquder72evprtidvzp3bxdlb7mjgqmsozsbs4js7vqg4hxih7j5fi";
@@ -33,33 +37,37 @@ async function sendPushNotification(title, targetUrl, newsId) {
       })
     });
     const data = await response.json();
-    console.log(`📡 OneSignal Sonuç: ${JSON.stringify(data)}`);
+    console.log(`📡 OneSignal Yanıtı: ${JSON.stringify(data)}`);
   } catch (e) { console.error("❌ Hata:", e.message); }
 }
 
 async function scanNews() {
   console.log(`🔍 [${new Date().toLocaleTimeString()}] Tarama yapılıyor...`);
-  let count = 0;
+  let newsSentThisTurn = 0;
+
   for (const feedUrl of RSS_FEEDS) {
     try {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
-        // Sadece yeni haberler ve tur başına max 3 adet
-        if (link && !postedUrls.includes(link) && count < 3) {
+        
+        // Spam koruması: Sadece yeni haberler ve tur başına max 3 adet
+        if (link && !postedUrls.includes(link) && newsSentThisTurn < 3) {
           const safeTitle = (item.title || "News").slice(0, 50);
           const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
           
           await sendPushNotification(item.title, `https://worldwindows.network/?newsId=${newsId}`, newsId);
           postedUrls.push(link);
-          count++;
-          await new Promise(r => setTimeout(r, 5000)); // 5 saniye bekle (Spam koruması)
+          newsSentThisTurn++;
+          
+          // OneSignal için 5 saniye mola
+          await new Promise(r => setTimeout(r, 5000));
         }
       }
-    } catch (e) { console.log(`⚠️ Kaynak Hatası: ${feedUrl}`); }
+    } catch (e) { console.log(`⚠️ Hata: ${feedUrl}`); }
   }
 }
 
-// 5 dakikada bir tarama (Render için en güvenli aralık)
+// 5 dakikada bir tarama (En sağlıklı hız)
 scanNews();
 setInterval(scanNews, 5 * 60 * 1000);
