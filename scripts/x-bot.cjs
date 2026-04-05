@@ -7,10 +7,13 @@ http.createServer((req, res) => {
   res.end('World Windows Multi-Source Bot is Active');
 }).listen(process.env.PORT || 3000);
 
-const parser = new Parser({ headers: { 'User-Agent': 'Mozilla/5.0' } });
+// Bazı sitelerin bot engellemesini aşmak için tam tarayıcı kimliği eklendi
+const parser = new Parser({ 
+  headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } 
+});
 let postedUrls = [];
 
-async function sendPushNotification(title, targetUrl, uniqueId) {
+async function sendPushNotification(title, targetUrl, pushTopic) {
   try {
     const response = await fetch("https://onesignal.com/api/v1/notifications", {
       method: "POST",
@@ -24,12 +27,13 @@ async function sendPushNotification(title, targetUrl, uniqueId) {
         headings: { "en": "WORLD WINDOWS", "tr": "WORLD WINDOWS" },
         contents: { "en": title, "tr": title },
         url: targetUrl, 
-        web_push_topic: uniqueId, 
-        android_group: uniqueId   
+        web_push_topic: pushTopic, 
+        android_group: pushTopic   
       })
     });
+    // Log ekranı çok şişmesin diye yanıtı basitleştirdik
     const data = await response.json();
-    console.log(`📡 OneSignal Yanıtı: ${JSON.stringify(data)}`);
+    if(data.id) console.log(`📡 Gönderildi: ${title.slice(0, 30)}...`);
   } catch (e) { console.error("❌ Hata:", e.message); }
 }
 
@@ -37,7 +41,6 @@ async function scanNews() {
   console.log(`🔍 [${new Date().toLocaleTimeString()}] Çoklu Kaynak Taraması Başladı...`);
   let count = 0;
   
-  // 34 Kaynağın Gerçek RSS/XML Linkleri
   const feeds = [
     "https://www.reutersagency.com/feed/", 
     "https://www.ft.com/?format=rss",
@@ -80,29 +83,33 @@ async function scanNews() {
       const feed = await parser.parseURL(feedUrl);
       for (const item of feed.items) {
         const link = (item.link || "").trim();
+        const title = (item.title || "News").trim();
         
-        // HIZLANDIRILMIŞ LİMİT: Tur başına 25 habere kadar gönderim
         if (link && !postedUrls.includes(link) && count < 25) {
           
-          const safeTitle = (item.title || "News").slice(0, 50);
-          const newsId = Buffer.from(safeTitle).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
+          // 1. SİTEN İÇİN: Tam ve kesilmemiş Base64 (Özel karakterler dahil)
+          const exactNewsId = Buffer.from(title).toString('base64');
           
-          const targetUrl = `https://www.worldwindows.network/?newsId=${newsId}`;
+          // EncodeURIComponent ile linkteki özel karakterlerin (+, /, =) kırılmasını önlüyoruz
+          const targetUrl = `https://www.worldwindows.network/?newsId=${encodeURIComponent(exactNewsId)}`;
           
-          await sendPushNotification(item.title, targetUrl, newsId);
+          // 2. ONESIGNAL İÇİN: Gruplama mekanizması hata vermesin diye temizlenmiş kısa ID
+          const pushTopic = exactNewsId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 30);
+          
+          await sendPushNotification(title, targetUrl, pushTopic);
           
           postedUrls.push(link);
           count++;
           
-          // Spam koruması (5 sn)
           await new Promise(r => setTimeout(r, 5000));
         }
       }
-    } catch (e) { console.log(`⚠️ Kaynak atlandı (Yanıt yok veya yapısı farklı): ${feedUrl}`); }
+    } catch (e) { 
+      // Hata veren (bot korumalı) siteler logları kirletmesin diye sessize alındı
+    }
   }
   console.log(`✅ Bu turda ${count} yeni haber gönderildi.`);
 }
 
-// HIZLANDIRILMIŞ SÜRE: 5 Dakikada bir çalıştır
 scanNews();
 setInterval(scanNews, 5 * 60 * 1000);
