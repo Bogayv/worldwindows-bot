@@ -11,10 +11,8 @@ const parser = new Parser({
   headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } 
 });
 
-// Yedek yerel hafıza (Redis'e anlık ulaşılamazsa diye)
 let postedUrls = [];
 
-// Redis Kontrol Fonksiyonu: "Bu haber daha önce gönderildi mi?"
 async function checkRedis(key) {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return false;
   try {
@@ -28,7 +26,6 @@ async function checkRedis(key) {
   }
 }
 
-// Redis Kayıt Fonksiyonu: Haberi 3 Günlüğüne (259200 saniye) Buluta Kaydet
 async function saveToRedis(key) {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) return;
   try {
@@ -57,7 +54,8 @@ async function sendPushNotification(title, targetUrl, pushTopic) {
       })
     });
     const data = await response.json();
-    if(data.id) console.log(`📡 Gönderildi: ${title.slice(0, 30)}...`);
+    // Eski güvenilir log formatına geri döndük
+    console.log(`📡 OneSignal Yanıtı: ${JSON.stringify(data)}`);
   } catch (e) { console.error("❌ Hata:", e.message); }
 }
 
@@ -109,21 +107,21 @@ async function scanNews() {
         const link = (item.link || "").trim();
         const title = (item.title || "News").trim();
         
-        // Linki Redis için özel bir şifreye çeviriyoruz
         const redisKey = Buffer.from(link).toString('base64').replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
-        
-        // Eğer link bulutta (Redis) VEYA yerel hafızada varsa bu haberi pas geçiyoruz
         const isAlreadyPosted = postedUrls.includes(link) || await checkRedis(redisKey);
         
         if (link && !isAlreadyPosted && count < 25) {
           
-          const exactNewsId = Buffer.from(title).toString('base64');
-          const targetUrl = `https://www.worldwindows.network/?newsId=${encodeURIComponent(exactNewsId)}`;
-          const pushTopic = exactNewsId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 30);
+          // Sitenin tam olarak beklediği 24 karakterlik kesilmiş ID (Özel karakterler dahil)
+          const newsId = Buffer.from(title).toString('base64').slice(0, 24);
+          
+          const targetUrl = `https://www.worldwindows.network/?newsId=${encodeURIComponent(newsId)}`;
+          
+          // OneSignal ID'sinin hata vermemesi için temizlenmiş konu başlığı
+          const pushTopic = newsId.replace(/[^a-zA-Z0-9]/g, "");
           
           await sendPushNotification(title, targetUrl, pushTopic);
           
-          // Gönderilen haberi bir daha asla göndermemek üzere kaydediyoruz
           postedUrls.push(link);
           await saveToRedis(redisKey);
           
@@ -132,9 +130,7 @@ async function scanNews() {
           await new Promise(r => setTimeout(r, 5000));
         }
       }
-    } catch (e) { 
-      // Hata veren siteler sistemi durdurmasın diye atlanıyor
-    }
+    } catch (e) { }
   }
   console.log(`✅ Bu turda ${count} yeni haber gönderildi.`);
 }
