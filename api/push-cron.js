@@ -1,5 +1,4 @@
 async function sendPush(newsItem) {
-  // DÜZELTME 1: Değişken adı senin sistemindeki gibi ONESIGNAL_KEY olarak düzeltildi
   const REST_KEY = process.env.ONESIGNAL_KEY;
   if (!REST_KEY) return false;
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
@@ -12,6 +11,9 @@ async function sendPush(newsItem) {
       contents: { en: newsItem.baslik.slice(0, 200) },
       url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
       chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
+      // BİLDİRİMLERİN BİRBİRİNİ EZMESİNİ (ÜST ÜSTE BİNMESİNİ) ENGELEYEN SİHİRLİ SATIRLAR:
+      web_push_topic: newsItem.id,
+      android_group: newsItem.id,
       collapse_id: newsItem.id
     })
   });
@@ -92,7 +94,6 @@ export default async function handler(req, res) {
     if (pushedCount >= 10) break; 
     try {
       const controller = new AbortController();
-      // DÜZELTME 2: Sitelerin yanıt vermesi için süreyi tekrar 5 saniyeye (5000ms) çıkardık
       const timeoutId = setTimeout(() => controller.abort(), 5000); 
       const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
       clearTimeout(timeoutId);
