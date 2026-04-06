@@ -32,24 +32,34 @@ async function redisSet(url, token, key, value) {
   });
 }
 
-function parseFirstItem(xml, label) {
-  const block = (xml.match(/<item[\s\S]*?<\/item>/) || [])[0];
-  if (!block) return null;
-  const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || "").trim();
-  const link = ((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || "#").trim();
-  const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
-  if (!title) return null;
+// 🛠 KÖR NOKTA ÇÖZÜMÜ: Artık her sitenin sadece ilk haberini değil, ilk 3 haberini tarıyoruz!
+function parseItems(xml, label) {
+  const items = [];
+  const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
 
-  // ZAMAN HİYERARŞİSİ İÇİN YENİ EKLENEN KISIM:
-  let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
-  let timestamp = Date.now(); // Varsayılan olarak şu an
-  if (pubDateRaw) {
-    const parsed = Date.parse(pubDateRaw.trim());
-    if (!isNaN(parsed)) timestamp = parsed;
+  for (let i = 0; i < Math.min(blocks.length, 3); i++) {
+    const block = blocks[i];
+    const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
+    const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
+    
+    const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
+    if (!title) continue;
+
+    let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
+    let timestamp = Date.now();
+    if (pubDateRaw) {
+      let cleanDate = pubDateRaw.trim().replace(/\s+[A-Z]{3,5}$/i, "");
+      const parsed = Date.parse(cleanDate);
+      if (!isNaN(parsed)) {
+        // Gelecek zaman koruması (JPost gibi siteler tepeye yapışmasın diye)
+        timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed;
+      }
+    }
+
+    const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
+    items.push({ id, baslik: title, url: link, kaynak: label, timestamp });
   }
-
-  const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
-  return { id, baslik: title, url: link, kaynak: label, timestamp };
+  return items;
 }
 
 export default async function handler(req, res) {
@@ -95,31 +105,27 @@ export default async function handler(req, res) {
     { url: "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms", label: "Times of India" }
   ];
 
-  // BÜTÜN SİTELERİ AYNI ANDA TARA (Hız için Promise.all kullanıyoruz)
   const fetchPromises = FEEDS.map(async (feed) => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5 sn mühlet
+      const timeoutId = setTimeout(() => controller.abort(), 4000); 
       const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
       clearTimeout(timeoutId);
 
-      if (!response || !response.ok) return null;
-      return parseFirstItem(await response.text(), feed.label);
-    } catch(e) { return null; }
+      if (!response || !response.ok) return [];
+      return parseItems(await response.text(), feed.label);
+    } catch(e) { return []; }
   });
 
   const rawResults = await Promise.all(fetchPromises);
-  
-  // Geçersizleri filtrele
-  const validItems = rawResults.filter(item => item !== null);
+  const validItems = rawResults.flat().filter(item => item !== null);
 
-  // ZAMAN HİYERARŞİSİ: En yeni haber en üste gelecek şekilde sırala (Yüksek timestamp = Yeni)
+  // EN YENİDEN EN ESKİYE DOĞRU SIRALA
   validItems.sort((a, b) => b.timestamp - a.timestamp);
 
   let pushedCount = 0;
   let summary = [];
 
-  // Artık liste tamamen EN YENİDEN -> EN ESKİYE doğru sıralı!
   for (const item of validItems) {
     if (pushedCount >= 10) break; 
     
@@ -133,6 +139,9 @@ export default async function handler(req, res) {
       await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); 
       pushedCount++;
       summary.push(item.kaynak);
+      
+      // 🛠 BİLDİRİMLERİN TEK TEK VE SIRALI DÜŞMESİ İÇİN KRİTİK GECİKME (4 Saniye)
+      await new Promise(r => setTimeout(r, 4000));
     }
   }
 

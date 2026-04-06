@@ -94,7 +94,7 @@ const TradingViewLiveTicker = memo(() => {
 
 let persistentTimeCache = {};
 try {
-  const saved = localStorage.getItem('ww_news_timer_final');
+  const saved = localStorage.getItem('ww_news_timer_v3');
   if (saved) persistentTimeCache = JSON.parse(saved);
 } catch (e) {}
 
@@ -229,12 +229,12 @@ export default function GlobalHaberler() {
             const newsId = btoa(unescape(encodeURIComponent(title.slice(0,50)))).replace(/[^a-zA-Z0-9]/g, "").slice(0,24);
             let pubDateNode = item.querySelector("pubDate") || item.querySelector("updated") || item.getElementsByTagName("dc:date")[0];
             let newsTime = null;
-            if (pubDateNode && pubDateNode.textContent) { const parsedTime = Date.parse(pubDateNode.textContent); if (!isNaN(parsedTime)) newsTime = parsedTime; }
-            if (!newsTime) newsTime = persistentTimeCache[newsId] || (fetchTime - (index * 1000));
+            if (pubDateNode && pubDateNode.textContent) { let cleanDate = pubDateNode.textContent.trim().replace(/\s+[A-Z]{3,5}$/i, ""); let parsedTime = Date.parse(cleanDate); if (!isNaN(parsedTime)) { newsTime = parsedTime > fetchTime ? fetchTime - (index * 60000) : parsedTime; } }
+            if (!newsTime) newsTime = persistentTimeCache[newsId] || (fetchTime - 3600000 - (index * 60000));
             let imageUrl = item.querySelector("enclosure")?.getAttribute("url") || item.querySelector("media\\:content, content")?.getAttribute("url") || "";
             if (!imageUrl) { const desc = item.querySelector("description")?.textContent || ""; const match = desc.match(/<img[^>]+src="([^">]+)"/); if (match) imageUrl = match[1]; }
             if (!imageUrl || !imageUrl.startsWith("http")) imageUrl = "https://worldwindows.network/logo.jpeg";
-            if (!persistentTimeCache[newsId]) { persistentTimeCache[newsId] = newsTime; localStorage.setItem('ww_news_timer_final', JSON.stringify(persistentTimeCache)); }
+            if (!persistentTimeCache[newsId]) { persistentTimeCache[newsId] = newsTime; localStorage.setItem('ww_news_timer_v3', JSON.stringify(persistentTimeCache)); }
             return { id: newsId, baslik: title, detay: (item.querySelector("description")?.textContent || "").replace(/<[^>]*>?/gm, ''), kaynak: feedTitle.replace(/ - BBC News| \| World/gi, ''), url: (item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "#").trim(), img: imageUrl, tagId: currentTag.id, timestamp: persistentTimeCache[newsId] };
           });
         } catch (e) { return []; }
