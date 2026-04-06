@@ -11,7 +11,6 @@ async function sendPush(newsItem) {
       contents: { en: newsItem.baslik.slice(0, 200) },
       url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
       chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
-      // BİLDİRİMLERİN BİRBİRİNİ EZMESİNİ (ÜST ÜSTE BİNMESİNİ) ENGELEYEN SİHİRLİ SATIRLAR:
       web_push_topic: newsItem.id,
       android_group: newsItem.id,
       collapse_id: newsItem.id
@@ -40,8 +39,17 @@ function parseFirstItem(xml, label) {
   const link = ((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || "#").trim();
   const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
   if (!title) return null;
+
+  // ZAMAN HİYERARŞİSİ İÇİN YENİ EKLENEN KISIM:
+  let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
+  let timestamp = Date.now(); // Varsayılan olarak şu an
+  if (pubDateRaw) {
+    const parsed = Date.parse(pubDateRaw.trim());
+    if (!isNaN(parsed)) timestamp = parsed;
+  }
+
   const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
-  return { id, baslik: title, url: link, kaynak: label };
+  return { id, baslik: title, url: link, kaynak: label, timestamp };
 }
 
 export default async function handler(req, res) {
@@ -87,33 +95,45 @@ export default async function handler(req, res) {
     { url: "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms", label: "Times of India" }
   ];
 
-  let pushedCount = 0;
-  let summary = [];
-
-  for (const feed of FEEDS) {
-    if (pushedCount >= 10) break; 
+  // BÜTÜN SİTELERİ AYNI ANDA TARA (Hız için Promise.all kullanıyoruz)
+  const fetchPromises = FEEDS.map(async (feed) => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); 
+      const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5 sn mühlet
       const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
       clearTimeout(timeoutId);
 
-      if (!response || !response.ok) continue;
-      const item = parseFirstItem(await response.text(), feed.label);
-      if (!item) continue;
+      if (!response || !response.ok) return null;
+      return parseFirstItem(await response.text(), feed.label);
+    } catch(e) { return null; }
+  });
 
-      const cacheKey = `sent_${item.id}`;
-      const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
+  const rawResults = await Promise.all(fetchPromises);
+  
+  // Geçersizleri filtrele
+  const validItems = rawResults.filter(item => item !== null);
 
-      if (isSent === "true") continue;
+  // ZAMAN HİYERARŞİSİ: En yeni haber en üste gelecek şekilde sırala (Yüksek timestamp = Yeni)
+  validItems.sort((a, b) => b.timestamp - a.timestamp);
 
-      const success = await sendPush(item);
-      if (success) {
-        await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); 
-        pushedCount++;
-        summary.push(feed.label);
-      }
-    } catch(e) { continue; }
+  let pushedCount = 0;
+  let summary = [];
+
+  // Artık liste tamamen EN YENİDEN -> EN ESKİYE doğru sıralı!
+  for (const item of validItems) {
+    if (pushedCount >= 10) break; 
+    
+    const cacheKey = `sent_${item.id}`;
+    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
+
+    if (isSent === "true") continue;
+
+    const success = await sendPush(item);
+    if (success) {
+      await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); 
+      pushedCount++;
+      summary.push(item.kaynak);
+    }
   }
 
   return res.status(200).json({ ok: true, count: pushedCount, sources: summary });
