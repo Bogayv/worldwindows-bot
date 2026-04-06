@@ -11,8 +11,10 @@ async function sendPush(newsItem) {
       contents: { en: newsItem.baslik.slice(0, 200) },
       url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
       chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
+      // BİLDİRİMLERİN ÜST ÜSTE BİNMESİNİ ENGELLER (SIRALI DÜŞMESİNİ SAĞLAR)
       web_push_topic: newsItem.id,
-      android_group: newsItem.id
+      android_group: newsItem.id,
+      collapse_id: newsItem.id
     })
   });
   return res.ok;
@@ -25,27 +27,48 @@ async function redisGet(url, token, key) {
 }
 
 async function redisSet(url, token, key, value) {
+  // REDIS 3 GÜNLÜK HAFIZA (259200 Saniye)
   await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` }
   });
 }
 
-function parseFirstItem(xml, label) {
-  const block = (xml.match(/<item[\s\S]*?<\/item>/) || [])[0];
-  if (!block) return null;
-  const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1] || "").trim();
-  const link = ((block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || "#").trim();
-  const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
-  if (!title) return null;
-  const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
-  return { id, baslik: title, url: link, kaynak: label };
+// 🛠 KÖR NOKTA ÇÖZÜMÜ: İlk 1 değil, ilk 3 habere bakıyoruz.
+function parseItems(xml, label) {
+  const items = [];
+  const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
+
+  for (let i = 0; i < Math.min(blocks.length, 3); i++) {
+    const block = blocks[i];
+    const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
+    const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
+    
+    const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
+    if (!title) continue;
+
+    // SAAT HATASINI (GELECEKTEN GELEN HABERLERİ) DÜZELTME
+    let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
+    let timestamp = Date.now();
+    if (pubDateRaw) {
+      let cleanDate = pubDateRaw.trim().replace(/\s+[A-Z]{3,5}$/i, "");
+      const parsed = Date.parse(cleanDate);
+      if (!isNaN(parsed)) {
+        timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed;
+      }
+    }
+
+    const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
+    items.push({ id, baslik: title, url: link, kaynak: label, timestamp });
+  }
+  return items;
 }
 
 export default async function handler(req, res) {
   const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/"/g,"").trim();
   const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/"/g,"").trim();
 
+  // ORİJİNAL 34 KAYNAK
   const FEEDS = [
     { url: "https://www.reutersagency.com/feed/", label: "Reuters" },
     { url: "https://www.ft.com/?format=rss", label: "Financial Times" },
@@ -80,34 +103,45 @@ export default async function handler(req, res) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  let pushedCount = 0;
-  let summary = [];
-
-  for (const feed of FEEDS) {
-    if (pushedCount >= 10) break;
+  const fetchPromises = FEEDS.map(async (feed) => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // Eski usul 5 saniye
+      const timeoutId = setTimeout(() => controller.abort(), 4000); 
       const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
       clearTimeout(timeoutId);
 
-      if (!response || !response.ok) continue;
-      const item = parseFirstItem(await response.text(), feed.label);
-      if (!item) continue;
+      if (!response || !response.ok) return [];
+      return parseItems(await response.text(), feed.label);
+    } catch(e) { return []; }
+  });
 
-      const cacheKey = `sent_${item.id}`;
-      const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
+  const rawResults = await Promise.all(fetchPromises);
+  const validItems = rawResults.flat().filter(item => item !== null);
 
-      if (isSent === "true") continue;
+  // EN YENİDEN EN ESKİYE DOĞRU SIRALA (ZAMAN HİYERARŞİSİ)
+  validItems.sort((a, b) => b.timestamp - a.timestamp);
 
-      const success = await sendPush(item);
-      if (success) {
-        await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true");
-        pushedCount++;
-        summary.push(feed.label);
-        await new Promise(r => setTimeout(r, 4000)); // Bildirimlerin sıralı düşmesi için bekletme
-      }
-    } catch(e) { continue; }
+  let pushedCount = 0;
+  let summary = [];
+
+  for (const item of validItems) {
+    if (pushedCount >= 10) break; // MAKSİMUM 10 HABER 
+    
+    const cacheKey = `sent_${item.id}`;
+    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
+
+    // EĞER 3 GÜN İÇİNDE ATILDIYSA PAS GEÇ
+    if (isSent === "true") continue;
+
+    const success = await sendPush(item);
+    if (success) {
+      await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); 
+      pushedCount++;
+      summary.push(item.kaynak);
+      
+      // BİLDİRİMLERİN TEK TEK VE SIRALI DÜŞMESİ İÇİN 4 SANİYE BEKLE
+      await new Promise(r => setTimeout(r, 4000));
+    }
   }
 
   return res.status(200).json({ ok: true, count: pushedCount, sources: summary });
