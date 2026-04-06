@@ -11,9 +11,7 @@ async function sendPush(newsItem) {
       contents: { en: newsItem.baslik.slice(0, 200) },
       url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
       chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
-      web_push_topic: newsItem.id,
-      // 🚀 YENİ EKLENDİ: Android'e bu bildirimin kilit ekranında gösterilmesinin güvenli olduğunu söyler
-      android_visibility: 1
+      collapse_id: newsItem.id
     })
   });
   return res.ok;
@@ -46,7 +44,7 @@ function parseFirstItem(xml, label) {
 export default async function handler(req, res) {
   const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/"/g,"").trim();
   const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/"/g,"").trim();
-  
+
   const FEEDS = [
     { url: "https://www.reutersagency.com/feed/", label: "Reuters" },
     { url: "https://www.ft.com/?format=rss", label: "Financial Times" },
@@ -78,29 +76,44 @@ export default async function handler(req, res) {
     { url: "https://www.borsagundem.com.tr/rss", label: "Borsa Gündem" },
     { url: "https://www.ekonomim.com/rss", label: "Ekonomim" },
     { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" },
-    { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
+    { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" },
+    // 🚀 YENİ EKLENEN 5 DEV KAYNAK:
+    { url: "https://feeds.bloomberg.com/markets/news.xml", label: "Bloomberg" },
+    { url: "https://feeds.washingtonpost.com/rss/world", label: "Washington Post" },
+    { url: "https://techcrunch.com/feed/", label: "TechCrunch" },
+    { url: "https://www.jpost.com/rss/rssfeedsfrontpage.aspx", label: "Jerusalem Post" },
+    { url: "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms", label: "Times of India" }
   ];
 
   let pushedCount = 0;
+  let summary = [];
+
   for (const feed of FEEDS) {
-    if (pushedCount >= 15) break; 
+    if (pushedCount >= 10) break; // Tekrar 10 bildirim kapasitesine çıkardık
     try {
-      const response = await fetch(feed.url);
-      if (!response.ok) continue;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 saniyede veriyi kapıp çıkar, takılmaz
+      const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
+      clearTimeout(timeoutId);
+
+      if (!response || !response.ok) continue;
       const item = parseFirstItem(await response.text(), feed.label);
       if (!item) continue;
 
+      // Anti-Spam: Haberin daha önce gidip gitmediğini kontrol eder
       const cacheKey = `sent_${item.id}`;
       const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
+
       if (isSent === "true") continue;
-      
+
       const success = await sendPush(item);
       if (success) {
-        await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true");
+        await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); // 3 günlük hafızaya alır
         pushedCount++;
+        summary.push(feed.label);
       }
     } catch(e) { continue; }
   }
 
-  return res.status(200).json({ ok: true, pushed: pushedCount });
+  return res.status(200).json({ ok: true, count: pushedCount, sources: summary });
 }
