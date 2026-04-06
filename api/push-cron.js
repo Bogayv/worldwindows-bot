@@ -1,5 +1,6 @@
 async function sendPush(newsItem) {
-  const REST_KEY = process.env.ONESIGNAL_KEY;
+  // VERCEL'DEKİ TAM İSİM BURAYA YAZILDI (Ekran Görüntüsündeki İsim)
+  const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
   if (!REST_KEY) return false;
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
     method: "POST",
