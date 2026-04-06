@@ -4,17 +4,17 @@ import { ThemeProvider, useTheme } from "next-themes";
 
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: [] },
-  { id: "trump", label: "TRUMP", urls: ["https://www.reutersagency.com/feed/", "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "https://www.politico.com/rss/politicopicks.xml", "https://feeds.washingtonpost.com/rss/world"]},
-  { id: "war", label: "WAR", urls: ["https://www.aljazeera.com/xml/rss/all.xml", "https://www.theguardian.com/world/rss", "http://feeds.bbci.co.uk/news/world/rss.xml", "https://www.jpost.com/rss/rssfeedsfrontpage.aspx"]},
-  { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/", "https://feeds.bloomberg.com/markets/news.xml", "https://techcrunch.com/feed/", "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms"]},
-  { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss", "https://feeds.bloomberg.com/markets/news.xml", "https://techcrunch.com/feed/"]},
+  { id: "trump", label: "TRUMP", urls: ["https://www.reutersagency.com/feed/", "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "https://www.politico.com/rss/politicopicks.xml"]},
+  { id: "war", label: "WAR", urls: ["https://www.aljazeera.com/xml/rss/all.xml", "https://www.theguardian.com/world/rss", "http://feeds.bbci.co.uk/news/world/rss.xml"]},
+  { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
+  { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss"]},
   { id: "kripto", label: "CRYPTO", urls: ["https://cointelegraph.com/rss", "https://www.coindesk.com/arc/outboundfeeds/rss/"]},
-  { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml", "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms"]},
-  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://tr.euronews.com/rss?level=vertical&type=all", "https://www.france24.com/en/rss", "https://www.foreignaffairs.com/rss.xml", "https://rss.dw.com/rdf/rss-en-all", "https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml", "https://feeds.washingtonpost.com/rss/world", "https://www.jpost.com/rss/rssfeedsfrontpage.aspx"]},
-  { id: "siyaset", label: "POLITICS", urls: ["https://www.sozcu.com.tr/feeds-son-dakika", "https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss", "https://www.abc.net.au/news/feed/45910/rss.xml", "https://feeds.washingtonpost.com/rss/world"]},
+  { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml"]},
+  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://tr.euronews.com/rss?level=vertical&type=all", "https://www.france24.com/en/rss", "https://www.foreignaffairs.com/rss.xml", "https://rss.dw.com/rdf/rss-en-all", "https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml"]},
+  { id: "siyaset", label: "POLITICS", urls: ["https://www.sozcu.com.tr/feeds-son-dakika", "https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss", "https://www.abc.net.au/news/feed/45910/rss.xml"]},
   { id: "gold", label: "GOLD", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/news_95.rss"]},
   { id: "silver", label: "SILVER", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/market_overview_287.rss"]},
-  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://gazeteoksijen.com/rss", "https://www.paraanaliz.com/feed/", "https://www.ntv.com.tr/ekonomi.rss", "https://www.borsagundem.com.tr/rss", "https://www.ekonomim.com/rss", "https://tr.investing.com/rss/news_301.rss", "https://www.hisse.net/haber/?feed=rss2", "https://feeds.bloomberg.com/markets/news.xml"]},
+  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://gazeteoksijen.com/rss", "https://www.paraanaliz.com/feed/", "https://www.ntv.com.tr/ekonomi.rss", "https://www.borsagundem.com.tr/rss", "https://www.ekonomim.com/rss", "https://tr.investing.com/rss/news_301.rss", "https://www.hisse.net/haber/?feed=rss2"]},
 ];
 
 const SOURCE_LINKS = [
@@ -51,12 +51,7 @@ const SOURCE_LINKS = [
   { name: "Borsa Gündem", url: "https://www.borsagundem.com.tr", color: "#1D5D9B" },
   { name: "Ekonomim", url: "https://www.ekonomim.com", color: "#F39C12" },
   { name: "Investing TR", url: "https://tr.investing.com", color: "#F38B00" },
-  { name: "Hisse.net", url: "https://www.hisse.net", color: "#00B0F0" },
-  { name: "Bloomberg", url: "https://www.bloomberg.com", color: "#FFFFFF" },
-  { name: "Washington Post", url: "https://www.washingtonpost.com", color: "#FFFFFF" },
-  { name: "TechCrunch", url: "https://techcrunch.com", color: "#00A562" },
-  { name: "Jerusalem Post", url: "https://www.jpost.com", color: "#5DADE2" },
-  { name: "Times of India", url: "https://timesofindia.indiatimes.com", color: "#D92128" }
+  { name: "Hisse.net", url: "https://www.hisse.net", color: "#00B0F0" }
 ];
 
 const ThemeToggleButton = () => {
@@ -94,7 +89,7 @@ const TradingViewLiveTicker = memo(() => {
 
 let persistentTimeCache = {};
 try {
-  const saved = localStorage.getItem('ww_news_timer_v3');
+  const saved = localStorage.getItem('ww_news_timer_final');
   if (saved) persistentTimeCache = JSON.parse(saved);
 } catch (e) {}
 
@@ -229,12 +224,12 @@ export default function GlobalHaberler() {
             const newsId = btoa(unescape(encodeURIComponent(title.slice(0,50)))).replace(/[^a-zA-Z0-9]/g, "").slice(0,24);
             let pubDateNode = item.querySelector("pubDate") || item.querySelector("updated") || item.getElementsByTagName("dc:date")[0];
             let newsTime = null;
-            if (pubDateNode && pubDateNode.textContent) { let cleanDate = pubDateNode.textContent.trim().replace(/\s+[A-Z]{3,5}$/i, ""); let parsedTime = Date.parse(cleanDate); if (!isNaN(parsedTime)) { newsTime = parsedTime > fetchTime ? fetchTime - (index * 60000) : parsedTime; } }
-            if (!newsTime) newsTime = persistentTimeCache[newsId] || (fetchTime - 3600000 - (index * 60000));
+            if (pubDateNode && pubDateNode.textContent) { const parsedTime = Date.parse(pubDateNode.textContent); if (!isNaN(parsedTime)) newsTime = parsedTime; }
+            if (!newsTime) newsTime = persistentTimeCache[newsId] || (fetchTime - (index * 1000));
             let imageUrl = item.querySelector("enclosure")?.getAttribute("url") || item.querySelector("media\\:content, content")?.getAttribute("url") || "";
             if (!imageUrl) { const desc = item.querySelector("description")?.textContent || ""; const match = desc.match(/<img[^>]+src="([^">]+)"/); if (match) imageUrl = match[1]; }
             if (!imageUrl || !imageUrl.startsWith("http")) imageUrl = "https://worldwindows.network/logo.jpeg";
-            if (!persistentTimeCache[newsId]) { persistentTimeCache[newsId] = newsTime; localStorage.setItem('ww_news_timer_v3', JSON.stringify(persistentTimeCache)); }
+            if (!persistentTimeCache[newsId]) { persistentTimeCache[newsId] = newsTime; localStorage.setItem('ww_news_timer_final', JSON.stringify(persistentTimeCache)); }
             return { id: newsId, baslik: title, detay: (item.querySelector("description")?.textContent || "").replace(/<[^>]*>?/gm, ''), kaynak: feedTitle.replace(/ - BBC News| \| World/gi, ''), url: (item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "#").trim(), img: imageUrl, tagId: currentTag.id, timestamp: persistentTimeCache[newsId] };
           });
         } catch (e) { return []; }
