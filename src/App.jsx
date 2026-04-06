@@ -1,19 +1,20 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { Analytics } from "@vercel/analytics/react";
+import { ThemeProvider, useTheme } from "next-themes";
 
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: [] },
-  { id: "trump", label: "TRUMP", urls: ["https://www.reutersagency.com/feed/", "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "https://www.politico.com/rss/politicopicks.xml"]},
-  { id: "war", label: "WAR", urls: ["https://www.aljazeera.com/xml/rss/all.xml", "https://www.theguardian.com/world/rss", "http://feeds.bbci.co.uk/news/world/rss.xml"]},
-  { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
-  { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss"]},
+  { id: "trump", label: "TRUMP", urls: ["https://www.reutersagency.com/feed/", "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "https://www.politico.com/rss/politicopicks.xml", "https://feeds.washingtonpost.com/rss/world"]},
+  { id: "war", label: "WAR", urls: ["https://www.aljazeera.com/xml/rss/all.xml", "https://www.theguardian.com/world/rss", "http://feeds.bbci.co.uk/news/world/rss.xml", "https://www.jpost.com/rss/rssfeedsfrontpage.aspx"]},
+  { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/", "https://feeds.bloomberg.com/markets/news.xml", "https://techcrunch.com/feed/", "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms"]},
+  { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss", "https://feeds.bloomberg.com/markets/news.xml", "https://techcrunch.com/feed/"]},
   { id: "kripto", label: "CRYPTO", urls: ["https://cointelegraph.com/rss", "https://www.coindesk.com/arc/outboundfeeds/rss/"]},
-  { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml"]},
-  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://tr.euronews.com/rss?level=vertical&type=all", "https://www.france24.com/en/rss", "https://www.foreignaffairs.com/rss.xml", "https://rss.dw.com/rdf/rss-en-all", "https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml"]},
-  { id: "siyaset", label: "POLITICS", urls: ["https://www.sozcu.com.tr/feeds-son-dakika", "https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss", "https://www.abc.net.au/news/feed/45910/rss.xml"]},
+  { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml", "https://timesofindia.indiatimes.com/rssfeeds/1898055.cms"]},
+  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://tr.euronews.com/rss?level=vertical&type=all", "https://www.france24.com/en/rss", "https://www.foreignaffairs.com/rss.xml", "https://rss.dw.com/rdf/rss-en-all", "https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml", "https://feeds.washingtonpost.com/rss/world", "https://www.jpost.com/rss/rssfeedsfrontpage.aspx"]},
+  { id: "siyaset", label: "POLITICS", urls: ["https://www.sozcu.com.tr/feeds-son-dakika", "https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss", "https://www.abc.net.au/news/feed/45910/rss.xml", "https://feeds.washingtonpost.com/rss/world"]},
   { id: "gold", label: "GOLD", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/news_95.rss"]},
   { id: "silver", label: "SILVER", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/market_overview_287.rss"]},
-  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://gazeteoksijen.com/rss", "https://www.paraanaliz.com/feed/", "https://www.ntv.com.tr/ekonomi.rss", "https://www.borsagundem.com.tr/rss", "https://www.ekonomim.com/rss", "https://tr.investing.com/rss/news_301.rss", "https://www.hisse.net/haber/?feed=rss2"]},
+  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://gazeteoksijen.com/rss", "https://www.paraanaliz.com/feed/", "https://www.ntv.com.tr/ekonomi.rss", "https://www.borsagundem.com.tr/rss", "https://www.ekonomim.com/rss", "https://tr.investing.com/rss/news_301.rss", "https://www.hisse.net/haber/?feed=rss2", "https://feeds.bloomberg.com/markets/news.xml"]},
 ];
 
 const SOURCE_LINKS = [
@@ -50,8 +51,22 @@ const SOURCE_LINKS = [
   { name: "Borsa Gündem", url: "https://www.borsagundem.com.tr", color: "#1D5D9B" },
   { name: "Ekonomim", url: "https://www.ekonomim.com", color: "#F39C12" },
   { name: "Investing TR", url: "https://tr.investing.com", color: "#F38B00" },
-  { name: "Hisse.net", url: "https://www.hisse.net", color: "#00B0F0" }
+  { name: "Hisse.net", url: "https://www.hisse.net", color: "#00B0F0" },
+  { name: "Bloomberg", url: "https://www.bloomberg.com", color: "#FFFFFF" },
+  { name: "Washington Post", url: "https://www.washingtonpost.com", color: "#FFFFFF" },
+  { name: "TechCrunch", url: "https://techcrunch.com", color: "#00A562" },
+  { name: "Jerusalem Post", url: "https://www.jpost.com", color: "#5DADE2" },
+  { name: "Times of India", url: "https://timesofindia.indiatimes.com", color: "#D92128" }
 ];
+
+const ThemeToggleButton = () => {
+  const { theme, setTheme } = useTheme();
+  return (
+    <span style={{cursor:"pointer", margin: "0 10px"}} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+      {theme === 'dark' ? '☀️ LIGHT MODE' : '🌙 DARK MODE'}
+    </span>
+  );
+};
 
 const TradingViewLiveTicker = memo(() => {
   const container = useRef();
@@ -325,10 +340,23 @@ export default function GlobalHaberler() {
   const closeModal = () => { setModalType(null); window.history.pushState({}, '', window.location.pathname); };
 
   return (
+    <ThemeProvider attribute="class" defaultTheme="dark">
     <div className="app-container" style={{ minHeight: "100vh", background: "#080c14", color: "#e8e6e0", fontFamily: "'Georgia', serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=Dancing+Script:wght@700&family=Source+Sans+3:wght@400;700&display=swap');
         .app-container { zoom: 0.8; }
+        :root[class~="light"] .app-container { background: #f5f5f5 !important; color: #111 !important; }
+        :root[class~="light"] .news-card, :root[class~="light"] .archive-card { background: #ffffff !important; border: 1px solid #ddd !important; }
+        :root[class~="light"] .tag-pill { background: #eee !important; color: #333 !important; border: 1px solid #ccc !important; }
+        :root[class~="light"] .tag-pill.active { background: #c9a96e !important; color: #000 !important; }
+        :root[class~="light"] header { background: #ffffff !important; }
+        :root[class~="light"] .top-header-container { background: #ffffff !important; }
+        :root[class~="light"] h3, :root[class~="light"] h4 { color: #111 !important; }
+        :root[class~="light"] .time-select-mini, :root[class~="light"] .font-btn { background: #fff !important; color: #111 !important; border-color: #aaa !important; }
+        :root[class~="light"] .search-mini { color: #111 !important; }
+        :root[class~="light"] .modal-content { background: #ffffff !important; }
+        :root[class~="light"] .shielded-text p { color: #333 !important; }
+        :root[class~="light"] .shielded-text h2 { color: #111 !important; }
         body { top: 0px !important; position: static !important; margin: 0; padding: 0; }
         .goog-te-banner-frame, .goog-te-balloon-frame, .goog-tooltip, .goog-text-highlight { display: none !important; pointer-events: none !important; }
         font { pointer-events: none !important; background-color: transparent !important; box-shadow: none !important; }
@@ -454,7 +482,8 @@ export default function GlobalHaberler() {
       </main>
       <footer className="notranslate" style={{ padding: "40px", textAlign: "center", borderTop: "1px solid #1e2d4a", marginTop: "40px" }}>
         <div style={{ color: "#c9a96e", fontWeight: "900", marginBottom: "5px" }}>WORLD WINDOWS</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: "20px", color: "#8a9ab0", fontSize: "12px", fontWeight: "900" }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: "20px", color: "#8a9ab0", fontSize: "10px", fontWeight: "900", flexWrap: "wrap" }}>
+          <ThemeToggleButton />
           <span style={{cursor:"pointer", margin: "0 10px"}} onClick={() => setModalType('about')}>ABOUT US</span>
           <span style={{cursor:"pointer", margin: "0 10px"}} onClick={() => setModalType('privacy')}>PRIVACY</span>
           <span style={{cursor:"pointer", margin: "0 10px"}} onClick={() => setModalType('contact')}>CONTACT</span>
@@ -544,5 +573,6 @@ export default function GlobalHaberler() {
       )}
       <Analytics />
     </div>
+    </ThemeProvider>
   );
 }
