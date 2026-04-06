@@ -1,5 +1,6 @@
 async function sendPush(newsItem) {
-  const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
+  // DÜZELTME 1: Değişken adı senin sistemindeki gibi ONESIGNAL_KEY olarak düzeltildi
+  const REST_KEY = process.env.ONESIGNAL_KEY;
   if (!REST_KEY) return false;
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
     method: "POST",
@@ -77,7 +78,6 @@ export default async function handler(req, res) {
     { url: "https://www.ekonomim.com/rss", label: "Ekonomim" },
     { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" },
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" },
-    // 🚀 YENİ EKLENEN 5 DEV KAYNAK:
     { url: "https://feeds.bloomberg.com/markets/news.xml", label: "Bloomberg" },
     { url: "https://feeds.washingtonpost.com/rss/world", label: "Washington Post" },
     { url: "https://techcrunch.com/feed/", label: "TechCrunch" },
@@ -89,10 +89,11 @@ export default async function handler(req, res) {
   let summary = [];
 
   for (const feed of FEEDS) {
-    if (pushedCount >= 10) break; // Tekrar 10 bildirim kapasitesine çıkardık
+    if (pushedCount >= 10) break; 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 saniyede veriyi kapıp çıkar, takılmaz
+      // DÜZELTME 2: Sitelerin yanıt vermesi için süreyi tekrar 5 saniyeye (5000ms) çıkardık
+      const timeoutId = setTimeout(() => controller.abort(), 5000); 
       const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
       clearTimeout(timeoutId);
 
@@ -100,7 +101,6 @@ export default async function handler(req, res) {
       const item = parseFirstItem(await response.text(), feed.label);
       if (!item) continue;
 
-      // Anti-Spam: Haberin daha önce gidip gitmediğini kontrol eder
       const cacheKey = `sent_${item.id}`;
       const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
 
@@ -108,7 +108,7 @@ export default async function handler(req, res) {
 
       const success = await sendPush(item);
       if (success) {
-        await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); // 3 günlük hafızaya alır
+        await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); 
         pushedCount++;
         summary.push(feed.label);
       }
