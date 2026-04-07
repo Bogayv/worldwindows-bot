@@ -205,14 +205,15 @@ export default function GlobalHaberler() {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000);
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&_t=${Date.now()}_${Math.random()}`;
-          const res = await fetch(proxyUrl, {
-            signal: controller.signal,
-            cache: 'no-store',
-            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
-          });
+          const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&_t=${Date.now()}`;
+          let res = await fetch(proxyUrl, { signal: controller.signal, cache: 'no-store' }).catch(() => null);
+          
+          if (!res || !res.ok) {
+            const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+            res = await fetch(fallbackUrl, { signal: controller.signal }).catch(() => null);
+          }
           clearTimeout(timeoutId);
-          if (!res.ok) return [];
+          if (!res || !res.ok) return [];
           const xmlText = await res.text();
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xmlText, "text/xml");
