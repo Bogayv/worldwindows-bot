@@ -1,11 +1,9 @@
-// Cloudflare Pages için uyarlanmış Buffer (Base64) fonksiyonu
 function toBase64(str) {
   try { return btoa(unescape(encodeURIComponent(str))); }
   catch(e) { return btoa(str); }
 }
 
 async function sendPush(newsItem, env) {
-  // CLOUDFLARE ENV KULLANIMI: context.env üzerinden gelir
   const REST_KEY = env.ONESIGNAL_REST_API_KEY;
   if (!REST_KEY) return false;
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
@@ -18,7 +16,6 @@ async function sendPush(newsItem, env) {
       contents: { en: newsItem.baslik.slice(0, 200) },
       url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
       chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
-      // BİLDİRİMLERİN ÜST ÜSTE BİNMESİNİ ENGELLER (SIRALI DÜŞMESİNİ SAĞLAR)
       web_push_topic: newsItem.id,
       android_group: newsItem.id,
       collapse_id: newsItem.id
@@ -34,14 +31,12 @@ async function redisGet(url, token, key) {
 }
 
 async function redisSet(url, token, key, value) {
-  // REDIS 3 GÜNLÜK HAFIZA (259200 Saniye)
   await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` }
   });
 }
 
-// 🛠 KÖR NOKTA ÇÖZÜMÜ: İlk 1 değil, ilk 3 habere bakıyoruz.
 function parseItems(xml, label) {
   const items = [];
   const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
@@ -54,7 +49,6 @@ function parseItems(xml, label) {
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
 
-    // SAAT HATASINI (GELECEKTEN GELEN HABERLERİ) DÜZELTME
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
     if (pubDateRaw) {
@@ -71,13 +65,11 @@ function parseItems(xml, label) {
   return items;
 }
 
-// VERCEL'İN "handler(req, res)" YAPISI CLOUDFLARE'İN "onRequest(context)" YAPISINA ÇEVRİLDİ
 export async function onRequest(context) {
   const { env } = context;
   const REDIS_URL = env.UPSTASH_REDIS_REST_URL?.replace(/"/g,"").trim();
   const REDIS_TOKEN = env.UPSTASH_REDIS_REST_TOKEN?.replace(/"/g,"").trim();
 
-  // ORİJİNAL KAYNAKLAR
   const FEEDS = [
     { url: "https://www.reutersagency.com/feed/", label: "Reuters" },
     { url: "https://www.ft.com/?format=rss", label: "Financial Times" },
@@ -112,10 +104,12 @@ export async function onRequest(context) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  // YÜK DENGELEME: 50 Fetch limitine takılmamak için 31 siteyi ikiye bölüyoruz
-  const currentMinute = new Date().getMinutes();
-  const activeFeeds = (currentMinute % 4) === 0 ? FEEDS.slice(0, 16) : FEEDS.slice(16);
-  
+  // 4 VİTESLİ MOTOR: 50 İSTEK SINIRINA TAKILMAMAK İÇİN SİTELERİ 8'Lİ GRUPLARA BÖL
+  // Cron 2 dakikada bir çalıştığı için her turda farklı 8 site taranacak.
+  const currentMin = new Date().getMinutes();
+  const chunkIndex = Math.floor(currentMin / 2) % 4; // 0, 1, 2 veya 3
+  const activeFeeds = FEEDS.slice(chunkIndex * 8, (chunkIndex + 1) * 8);
+
   const fetchPromises = activeFeeds.map(async (feed) => {
     try {
       const controller = new AbortController();
@@ -131,19 +125,18 @@ export async function onRequest(context) {
   const rawResults = await Promise.all(fetchPromises);
   const validItems = rawResults.flat().filter(item => item !== null);
 
-  // EN YENİDEN EN ESKİYE DOĞRU SIRALA (ZAMAN HİYERARŞİSİ)
   validItems.sort((a, b) => b.timestamp - a.timestamp);
 
   let pushedCount = 0;
   let summary = [];
 
   for (const item of validItems) {
-    if (pushedCount >= 10) break; // MAKSİMUM 10 HABER 
+    // 50 İSTEK SINIRI İÇİN MAKSİMUM 5 HABER GÖNDERİMİ (5 Haber * 3 İşlem = 15 İstek)
+    if (pushedCount >= 5) break; 
     
     const cacheKey = `sent_${item.id}`;
     const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
 
-    // EĞER 3 GÜN İÇİNDE ATILDIYSA PAS GEÇ
     if (isSent === "true") continue;
 
     const success = await sendPush(item, env);
@@ -152,13 +145,16 @@ export async function onRequest(context) {
       pushedCount++;
       summary.push(item.kaynak);
       
-      // BİLDİRİMLERİN TEK TEK VE SIRALI DÜŞMESİ İÇİN 4 SANİYE BEKLE
       await new Promise(r => setTimeout(r, 4000));
     }
   }
 
-  // Cloudflare Pages JSON Yanıt Formatı
-  return new Response(JSON.stringify({ ok: true, count: pushedCount, sources: summary }), {
+  return new Response(JSON.stringify({ 
+    ok: true, 
+    gear: chunkIndex + 1, // Hangi viteste çalıştığını görebilmen için
+    count: pushedCount, 
+    sources: summary 
+  }), {
     status: 200,
     headers: { "Content-Type": "application/json" }
   });
