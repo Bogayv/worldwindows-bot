@@ -112,7 +112,11 @@ export async function onRequest(context) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  const fetchPromises = FEEDS.map(async (feed) => {
+  // YÜK DENGELEME: 50 Fetch limitine takılmamak için 31 siteyi ikiye bölüyoruz
+  const currentMinute = new Date().getMinutes();
+  const activeFeeds = (currentMinute % 4) === 0 ? FEEDS.slice(0, 16) : FEEDS.slice(16);
+  
+  const fetchPromises = activeFeeds.map(async (feed) => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000); 
