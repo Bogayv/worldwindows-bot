@@ -1,6 +1,5 @@
 let onesignalError = null;
 
-// REDIS BAĞLANTI FONKSİYONLARI
 async function redisGet(url, token, key) {
   if (!url || !token) return null;
   try {
@@ -13,11 +12,7 @@ async function redisGet(url, token, key) {
 async function redisSet(url, token, key, value) {
   if (!url || !token) return;
   try {
-    await fetch(`${url}/set/${encodeURIComponent(key)}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(value)
-    });
+    await fetch(`${url}/set/${encodeURIComponent(key)}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(value) });
   } catch(e) {}
 }
 
@@ -29,7 +24,7 @@ async function sendPush(newsItem) {
       headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
       body: JSON.stringify({
         app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-        included_segments: ["All", "Subscribed Users", "Active Users"], // En güvenli hedef kitle
+        included_segments: ["All", "Subscribed Users", "Active Users"],
         headings: { en: `🌍 ${newsItem.kaynak}` },
         contents: { en: newsItem.baslik },
         chrome_web_image: "https://www.worldwindows.network/logo.jpeg",
@@ -42,13 +37,10 @@ async function sendPush(newsItem) {
     const data = await res.json();
     if (!res.ok || data.errors) onesignalError = data;
     return (res.ok && !data.errors);
-  } catch(e) {
-    onesignalError = e.message;
-    return false;
-  }
+  } catch(e) { onesignalError = e.message; return false; }
 }
 
-function parseItems(xmlText, label, maxItems = 3) {
+function parseItems(xmlText, label, maxItems = 2) {
   const items = [];
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/g;
   let itemMatch;
@@ -97,14 +89,12 @@ export default async function handler(req, res) {
     { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" }
   ];
 
-  // 10 SANİYE LİMİTİNE TAKILMAMAK İÇİN RASTGELE 5 KAYNAK SEÇ
-  const randomFeeds = FEEDS.sort(() => 0.5 - Math.random()).slice(0, 5);
   let pushedCount = 0;
 
-  // PARALEL TARAMA (Çok Hızlı)
-  const fetchPromises = randomFeeds.map(async (feed) => {
+  // ARTIK RASTGELE 5 DEĞİL, TÜM KAYNAKLARIN HEPSİNİ AYNI ANDA TARIYORUZ!
+  const fetchPromises = FEEDS.map(async (feed) => {
     try {
-      const response = await fetch(feed.url, { signal: AbortSignal.timeout(4000) });
+      const response = await fetch(feed.url, { signal: AbortSignal.timeout(3500) });
       const text = await response.text();
       return parseItems(text, feed.label);
     } catch (err) { return []; }
@@ -115,14 +105,11 @@ export default async function handler(req, res) {
   for (const items of results) {
     for (const item of items) {
       try {
-        // REDIS HAFIZA KONTROLÜ
         const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
-        
-        // Eğer gönderilmediyse ve bu turda henüz 3 haber atmadıysak
-        if (!isSent && pushedCount < 3) {
+        // Spam olmaması için tek turda maksimum 4 sıcak haber atar
+        if (!isSent && pushedCount < 4) {
           const ok = await sendPush(item);
           if (ok) {
-            // BAŞARILIYSA REDİS'E "GÖNDERİLDİ" DİYE KAYDET (1 Haftalık ömür verilebilir ama şimdilik kalıcı)
             await redisSet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
             pushedCount++;
           }
@@ -133,8 +120,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({ 
     pushed: pushedCount, 
-    scanned_feeds: randomFeeds.map(f => f.label),
-    status: onesignalError ? "HATA" : "BASARILI",
-    error_details: onesignalError 
+    scanned_count: FEEDS.length,
+    status: onesignalError ? "HATA" : "BASARILI"
   });
 }
