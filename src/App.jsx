@@ -153,7 +153,7 @@ export default function GlobalHaberler() {
       document.title = "WORLD WINDOWS";
       let link = document.querySelector("link[rel~='icon']");
       if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.getElementsByTagName('head')[0].appendChild(link); }
-      link.href = '/logo.jpeg';
+      link.href = '/logo.jpeg?v=2';
     };
     updateHeader();
     const headerInterval = setInterval(updateHeader, 1000);
@@ -229,7 +229,7 @@ export default function GlobalHaberler() {
             if (!newsTime) newsTime = persistentTimeCache[newsId] || (fetchTime - (index * 1000));
             let imageUrl = item.querySelector("enclosure")?.getAttribute("url") || item.querySelector("media\\:content, content")?.getAttribute("url") || "";
             if (!imageUrl) { const desc = item.querySelector("description")?.textContent || ""; const match = desc.match(/<img[^>]+src="([^">]+)"/); if (match) imageUrl = match[1]; }
-            if (!imageUrl || !imageUrl.startsWith("http")) imageUrl = "https://worldwindows.network/logo.jpeg";
+            if (!imageUrl || !imageUrl.startsWith("http")) imageUrl = "https://worldwindows.network/logo.jpeg?v=2";
             if (!persistentTimeCache[newsId]) { persistentTimeCache[newsId] = newsTime; localStorage.setItem('ww_news_timer_final', JSON.stringify(persistentTimeCache)); }
             return { id: newsId, baslik: title, detay: (item.querySelector("description")?.textContent || "").replace(/<[^>]*>?/gm, ''), kaynak: feedTitle.replace(/ - BBC News| \| World/gi, ''), url: (item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "#").trim(), img: imageUrl, tagId: currentTag.id, timestamp: persistentTimeCache[newsId] };
           });
@@ -406,7 +406,7 @@ export default function GlobalHaberler() {
       <header style={{ background: "#000000" }}>
         <div className="top-header-container notranslate">
           <div className="title-wrapper">
-            <img src="./logo.jpeg" className="header-logo" alt="Logo" />
+            <img src="./logo.jpeg?v=2" className="header-logo" alt="Logo" />
             <div className="header-text-group">
               <h1 className="header-title">WORLD<br/>WINDOWS</h1>
               <div className="slogan-text">Global news to understand the world</div>
