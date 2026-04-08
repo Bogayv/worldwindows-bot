@@ -24,33 +24,32 @@ async function sendPush(newsItem) {
       headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
       body: JSON.stringify({
         app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-        included_segments: ["All", "Subscribed Users", "Active Users"],
+        included_segments: ["Subscribed Users"],
         headings: { en: `🌍 ${newsItem.kaynak}` },
         contents: { en: newsItem.baslik },
         chrome_web_image: "https://www.worldwindows.network/logo.jpeg",
         url: `https://worldwindows.network/?newsId=${newsItem.id}`,
         app_url: `https://worldwindows.network/?newsId=${newsItem.id}`,
-        web_push_topic: newsItem.id,
-        android_group: newsItem.id
+        web_push_topic: newsItem.id
       })
     });
     const data = await res.json();
-    if (!res.ok || data.errors) onesignalError = data;
-    return (res.ok && !data.errors);
+    if (!res.ok) onesignalError = data;
+    return res.ok;
   } catch(e) { onesignalError = e.message; return false; }
 }
 
-function parseItems(xmlText, label, maxItems = 2) {
+function parseItems(xmlText, label) {
   const items = [];
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/g;
-  let itemMatch;
-  while ((itemMatch = itemRegex.exec(xmlText)) !== null && items.length < maxItems) {
-    const block = itemMatch[1];
+  let match;
+  while ((match = itemRegex.exec(xmlText)) !== null && items.length < 2) {
+    const block = match[1];
     const titleMatch = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
     const title = titleMatch ? titleMatch[1].trim() : "";
     if (title && title.length > 10) {
       const newsId = Buffer.from(title.slice(0, 30)).toString("base64").replace(/[^a-zA-Z0-9]/g, "");
-      items.push({ id: newsId, baslik: title, kaynak: label, time: Date.now() });
+      items.push({ id: newsId, baslik: title, kaynak: label });
     }
   }
   return items;
@@ -58,8 +57,8 @@ function parseItems(xmlText, label, maxItems = 2) {
 
 export default async function handler(req, res) {
   onesignalError = null;
-  const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL ? process.env.UPSTASH_REDIS_REST_URL.replace(/"/g,"").trim() : "";
-  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN ? process.env.UPSTASH_REDIS_REST_TOKEN.replace(/"/g,"").trim() : "";
+  const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/"/g,"").trim();
+  const REDIS_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || "").replace(/"/g,"").trim();
 
   const FEEDS = [
     { url: "https://www.reutersagency.com/feed/", label: "Reuters" },
@@ -68,59 +67,46 @@ export default async function handler(req, res) {
     { url: "https://www.sozcu.com.tr/feeds-son-dakika", label: "Sözcü" },
     { url: "https://www.ekonomim.com/rss", label: "Ekonomim" },
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" },
-    { url: "https://www.ft.com/markets?format=rss", label: "FT Markets" },
     { url: "https://cointelegraph.com/rss", label: "CoinTelegraph" },
     { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", label: "CoinDesk" },
-    { url: "https://www.scmp.com/rss/4/feed", label: "SCMP" },
-    { url: "https://asia.nikkei.com/rss/feed/category/53", label: "Nikkei Asia" },
-    { url: "https://en.yna.co.kr/RSS/news.xml", label: "Yonhap News" },
-    { url: "https://tr.euronews.com/rss?level=vertical&type=all", label: "Euronews TR" },
-    { url: "https://www.france24.com/en/rss", label: "France 24" },
-    { url: "https://www.foreignaffairs.com/rss.xml", label: "Foreign Affairs" },
-    { url: "https://rss.dw.com/rdf/rss-en-all", label: "Deutsche Welle" },
-    { url: "https://www.theguardian.com/politics/rss", label: "Guardian Politics" },
-    { url: "https://www.abc.net.au/news/feed/45910/rss.xml", label: "ABC Australia" },
     { url: "https://www.kitco.com/rss/index.xml", label: "Kitco" },
     { url: "https://www.investing.com/rss/news_95.rss", label: "Investing Gold" },
     { url: "https://www.investing.com/rss/market_overview_287.rss", label: "Investing Silver" },
-    { url: "https://gazeteoksijen.com/rss", label: "Gazete Oksijen" },
+    { url: "https://www.ft.com/markets?format=rss", label: "FT Markets" },
+    { url: "https://asia.nikkei.com/rss/feed/category/53", label: "Nikkei Asia" },
+    { url: "https://tr.euronews.com/rss?level=vertical&type=all", label: "Euronews TR" },
     { url: "https://www.paraanaliz.com/feed/", label: "Para Analiz" },
-    { url: "https://www.borsagundem.com.tr/rss", label: "Borsa Gündem" },
     { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" }
   ];
 
+  // 1. ADIM: AYNI ANDA TARA (HIZ)
+  const results = await Promise.all(FEEDS.map(async f => {
+    try {
+      const r = await fetch(f.url, { signal: AbortSignal.timeout(3000) });
+      return parseItems(await r.text(), f.label);
+    } catch { return []; }
+  }));
+
+  const allFoundNews = results.flat();
   let pushedCount = 0;
 
-  // ARTIK RASTGELE 5 DEĞİL, TÜM KAYNAKLARIN HEPSİNİ AYNI ANDA TARIYORUZ!
-  const fetchPromises = FEEDS.map(async (feed) => {
-    try {
-      const response = await fetch(feed.url, { signal: AbortSignal.timeout(3500) });
-      const text = await response.text();
-      return parseItems(text, feed.label);
-    } catch (err) { return []; }
-  });
-
-  const results = await Promise.all(fetchPromises);
-  
-  for (const items of results) {
-    for (const item of items) {
-      try {
-        const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
-        // Spam olmaması için tek turda maksimum 4 sıcak haber atar
-        if (!isSent && pushedCount < 4) {
-          const ok = await sendPush(item);
-          if (ok) {
-            await redisSet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
-            pushedCount++;
-          }
-        }
-      } catch(e) {}
+  // 2. ADIM: SIRAYLA GÖNDER (GÜVENLİK)
+  for (const item of allFoundNews) {
+    if (pushedCount >= 3) break;
+    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
+    if (!isSent) {
+      const ok = await sendPush(item);
+      if (ok) {
+        await redisSet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
+        pushedCount++;
+      }
     }
   }
 
   res.status(200).json({ 
     pushed: pushedCount, 
-    scanned_count: FEEDS.length,
-    status: onesignalError ? "HATA" : "BASARILI"
+    scanned: FEEDS.length, 
+    status: onesignalError ? "HATA" : "BASARILI",
+    details: onesignalError 
   });
 }
