@@ -18,18 +18,19 @@ async function redisSet(url, token, key, value) {
 
 async function sendPush(newsItem) {
   const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
+  const targetUrl = `https://www.worldwindows.network/?newsId=${newsItem.id}`;
+  
   try {
     const res = await fetch("https://onesignal.com/api/v1/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
       body: JSON.stringify({
         app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-        included_segments: ["Subscribed Users", "Total Subscriptions", "Active Users", "All"],
+        included_segments: ["Subscribed Users", "Active Users", "All"],
         headings: { en: `🌍 ${newsItem.kaynak}` },
         contents: { en: newsItem.baslik },
         chrome_web_image: "https://www.worldwindows.network/logo.jpeg",
-        url: `https://worldwindows.network/?newsId=${newsItem.id}`,
-        app_url: `https://worldwindows.network/?newsId=${newsItem.id}`,
+        web_url: targetUrl, // Sadece web_url kullanıyoruz, çakışmayı bitiriyoruz
         web_push_topic: newsItem.id
       })
     });
@@ -79,7 +80,6 @@ export default async function handler(req, res) {
     { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" }
   ];
 
-  // 1. ADIM: AYNI ANDA TARA (HIZ)
   const results = await Promise.all(FEEDS.map(async f => {
     try {
       const r = await fetch(f.url, { signal: AbortSignal.timeout(3000) });
@@ -90,7 +90,6 @@ export default async function handler(req, res) {
   const allFoundNews = results.flat();
   let pushedCount = 0;
 
-  // 2. ADIM: SIRAYLA GÖNDER (GÜVENLİK)
   for (const item of allFoundNews) {
     if (pushedCount >= 3) break;
     const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
