@@ -180,7 +180,7 @@ export default function GlobalHaberler() {
         }, 'google_translate_element');
       };
       const script = document.createElement("script");
-      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
+      script.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
       script.async = true;
       document.body.appendChild(script);
     }
@@ -188,7 +188,7 @@ export default function GlobalHaberler() {
     const styleInterval = setInterval(() => {
       const combo = document.querySelector('.goog-te-combo');
       if (combo) { combo.style.cssText = "background-color: #c9a96e !important; color: #0d1424 !important; border: 1px solid #c9a96e !important; padding: 2px 4px !important; border-radius: 4px !important; font-size: 11px !important; font-weight: 900 !important; cursor: pointer !important; outline: none !important; width: 95px !important; height: 26px !important;"; }
-      const selectors = ['.goog-logo-link', '.goog-te-gadget span', '.goog-te-banner-frame', '#goog-gt-tt', '.goog-te-balloon-frame', '.goog-tooltip', '.skiptranslate iframe'];
+      const selectors = ['.goog-logo-link', ' .goog-te-gadget span:not(.notranslate)', '.goog-te-banner-frame', '#goog-gt-tt', '.goog-te-balloon-frame', '.goog-tooltip', '.skiptranslate iframe'];
       selectors.forEach(s => { const el = document.querySelector(s); if (el) el.style.setProperty('display', 'none', 'important'); });
       if (document.body.style.top !== '0px') { document.body.style.setProperty('top', '0px', 'important'); }
     }, 500);
@@ -371,7 +371,7 @@ export default function GlobalHaberler() {
         font { pointer-events: none !important; background-color: transparent !important; box-shadow: none !important; }
         .news-card::after, .archive-card::after, .shielded-text::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; background: transparent; }
         .share-icon-mini, .modal-body button, .modal-body a { z-index: 10; position: relative; }
-        .translate-wrapper { width: 95px; height: 26px; overflow: hidden; display: inline-block; border-radius: 4px; }
+        .translate-wrapper { min-width: 140px; height: 26px; overflow: hidden; display: inline-block; border-radius: 4px; }
         .top-header-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 55px 32px 10px; background: #000000; text-align: center; }
         .title-wrapper { display: flex; align-items: center; justify-content: center; gap: 0px; }
         .header-text-group { display: flex; flex-direction: column; align-items: center; }
