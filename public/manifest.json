@@ -1,12 +1,21 @@
 {
-  "short_name": "WORLD WINDOWS",
-  "name": "WORLD WINDOWS NETWORK",
+  "short_name": "WorldWindows",
+  "name": "WorldWindows Network",
   "icons": [
-    { "src": "logo.jpeg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any maskable" },
-    { "src": "logo.jpeg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" }
+    {
+      "src": "/logo.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#080c14",
-  "background_color": "#080c14"
+  "theme_color": "#000000",
+  "background_color": "#000000"
 }
