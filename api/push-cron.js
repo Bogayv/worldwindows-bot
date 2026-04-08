@@ -20,6 +20,7 @@ async function sendPush(newsItem) {
       app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
       included_segments: ["All"],
       headings: { en: `🌍 ${newsItem.kaynak}` },
+      chrome_web_image: "https://www.worldwindows.network/logo.jpeg",
       contents: { en: newsItem.baslik },
       url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
       web_push_topic: newsItem.id,
