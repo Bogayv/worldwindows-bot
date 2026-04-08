@@ -1,26 +1,3 @@
-async function sendPush(newsItem) {
-  // VERCEL'DEKİ TAM İSİM BURAYA YAZILDI (Ekran Görüntüsündeki İsim)
-  const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
-  if (!REST_KEY) return false;
-  const res = await fetch("https://onesignal.com/api/v1/notifications", {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
-    body: JSON.stringify({
-      app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-      included_segments: ["All"],
-      headings: { en: `🌍 ${newsItem.kaynak}` },
-      contents: { en: newsItem.baslik.slice(0, 200) },
-      url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
-      chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
-      // BİLDİRİMLERİN ÜST ÜSTE BİNMESİNİ ENGELLER (SIRALI DÜŞMESİNİ SAĞLAR)
-      web_push_topic: newsItem.id,
-      android_group: newsItem.id,
-      collapse_id: newsItem.id
-    })
-  });
-  return res.ok;
-}
-
 async function redisGet(url, token, key) {
   const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
   const data = await res.json();
@@ -28,48 +5,52 @@ async function redisGet(url, token, key) {
 }
 
 async function redisSet(url, token, key, value) {
-  // REDIS 3 GÜNLÜK HAFIZA (259200 Saniye)
-  await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
+  await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` }
   });
 }
 
-// 🛠 KÖR NOKTA ÇÖZÜMÜ: İlk 1 değil, ilk 3 habere bakıyoruz.
-function parseItems(xml, label) {
+async function sendPush(newsItem) {
+  const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
+  const res = await fetch("https://onesignal.com/api/v1/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
+    body: JSON.stringify({
+      app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
+      included_segments: ["All"],
+      headings: { en: `🌍 ${newsItem.kaynak}` },
+      contents: { en: newsItem.baslik },
+      url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
+      web_push_topic: newsItem.id,
+      android_group: newsItem.id
+    })
+  });
+  return res.ok;
+}
+
+function parseItems(xmlText, maxItems = 3) {
   const items = [];
-  const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
-
-  for (let i = 0; i < Math.min(blocks.length, 3); i++) {
-    const block = blocks[i];
-    const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
-    const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
-    
-    const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
-    if (!title) continue;
-
-    // SAAT HATASINI (GELECEKTEN GELEN HABERLERİ) DÜZELTME
-    let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
-    let timestamp = Date.now();
-    if (pubDateRaw) {
-      let cleanDate = pubDateRaw.trim().replace(/\s+[A-Z]{3,5}$/i, "");
-      const parsed = Date.parse(cleanDate);
-      if (!isNaN(parsed)) {
-        timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed;
-      }
+  const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/g;
+  let itemMatch;
+  while ((itemMatch = itemRegex.exec(xmlText)) !== null && items.length < maxItems) {
+    const block = itemMatch[1];
+    const titleMatch = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
+    const title = titleMatch ? titleMatch[1].trim() : "";
+    const linkMatch = block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/) ||
+                      block.match(/<link[^>]*href="([^"]+)"/);
+    const link = linkMatch ? linkMatch[1].trim() : "";
+    if (title && title.length > 10) {
+      items.push({ title, link });
     }
-
-    const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
-    items.push({ id, baslik: title, url: link, kaynak: label, timestamp });
   }
   return items;
 }
 
 export default async function handler(req, res) {
-  const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/"/g,"").trim();
-  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/"/g,"").trim();
+  const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL.replace(/"/g,"").trim();
+  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN.replace(/"/g,"").trim();
 
-  // ORİJİNAL 34 KAYNAK
   const FEEDS = [
     { url: "https://www.reutersagency.com/feed/", label: "Reuters" },
     { url: "https://www.ft.com/?format=rss", label: "Financial Times" },
@@ -104,46 +85,26 @@ export default async function handler(req, res) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  const fetchPromises = FEEDS.map(async (feed) => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); 
-      const response = await fetch(feed.url, { signal: controller.signal }).catch(() => null);
-      clearTimeout(timeoutId);
-
-      if (!response || !response.ok) return [];
-      return parseItems(await response.text(), feed.label);
-    } catch(e) { return []; }
-  });
-
-  const rawResults = await Promise.all(fetchPromises);
-  const validItems = rawResults.flat().filter(item => item !== null);
-
-  // EN YENİDEN EN ESKİYE DOĞRU SIRALA (ZAMAN HİYERARŞİSİ)
-  validItems.sort((a, b) => b.timestamp - a.timestamp);
-
   let pushedCount = 0;
-  let summary = [];
-
-  for (const item of validItems) {
-    if (pushedCount >= 10) break; // MAKSİMUM 10 HABER 
-    
-    const cacheKey = `sent_${item.id}`;
-    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
-
-    // EĞER 3 GÜN İÇİNDE ATILDIYSA PAS GEÇ
-    if (isSent === "true") continue;
-
-    const success = await sendPush(item);
-    if (success) {
-      await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true"); 
-      pushedCount++;
-      summary.push(item.kaynak);
-      
-      // BİLDİRİMLERİN TEK TEK VE SIRALI DÜŞMESİ İÇİN 4 SANİYE BEKLE
-      await new Promise(r => setTimeout(r, 4000));
-    }
+  for (const feed of FEEDS) {
+    if (pushedCount >= 10) break;
+    try {
+      const response = await fetch(feed.url, { signal: AbortSignal.timeout(8000) });
+      const text = await response.text();
+      const items = parseItems(text, 3);
+      for (const item of items) {
+        if (pushedCount >= 10) break;
+        const newsId = Buffer.from(item.title.slice(0, 30)).toString("base64").replace(/[^a-zA-Z0-9]/g, "");
+        const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${newsId}`);
+        if (isSent === "true") continue;
+        const ok = await sendPush({ id: newsId, baslik: item.title, kaynak: feed.label });
+        if (ok) {
+          await redisSet(REDIS_URL, REDIS_TOKEN, `sent_${newsId}`, "true");
+          pushedCount++;
+          await new Promise(r => setTimeout(r, 4000));
+        }
+      }
+    } catch(e) {}
   }
-
-  return res.status(200).json({ ok: true, count: pushedCount, sources: summary });
+  res.status(200).json({ pushed: pushedCount });
 }
