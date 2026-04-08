@@ -127,13 +127,26 @@ export default function GlobalHaberler() {
     });
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const newsId = params.get('newsId');
-    if (newsId && newsPool.length > 0) {
-      const found = newsPool.find(n => n.id === newsId);
-      if (found) { setSelectedNews(found); setModalType('news'); }
-    }
+    useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const newsId = params.get('newsId');
+      if (newsId && newsPool.length > 0) {
+        const found = newsPool.find(n => {
+          if (n.id === newsId) return true;
+          try {
+            const titleStr = n.baslik || "";
+            const encoded1 = btoa(unescape(encodeURIComponent(titleStr.slice(0, 30)))).replace(/[^a-zA-Z0-9]/g, "");
+            const encoded2 = btoa(titleStr.slice(0, 30).replace(/[^\x00-\x7F]/g, "")).replace(/[^a-zA-Z0-9]/g, "");
+            return encoded1 === newsId || encoded2 === newsId;
+          } catch(e) { return false; }
+        });
+        if (found) { 
+          setSelectedNews(found); 
+          setModalType('news'); 
+        }
+      }
+    } catch(err) {}
   }, [newsPool]);
 
   useEffect(() => {
