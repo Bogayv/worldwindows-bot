@@ -218,8 +218,8 @@ export default function GlobalHaberler() {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000);
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&_t=${Date.now()}`;
-          let res = await fetch(proxyUrl, { signal: controller.signal, cache: 'no-store' }).catch(() => null);
+          const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+          let res = await fetch(proxyUrl, { signal: controller.signal }).catch(() => null);
           
           if (!res || !res.ok) {
             const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
