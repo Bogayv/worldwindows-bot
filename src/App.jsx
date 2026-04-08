@@ -262,16 +262,16 @@ export default function GlobalHaberler() {
     }
   }
 
-  const displayData = useMemo(() => {
+    const displayData = useMemo(() => {
     let filtered = activeTag.id === "all" ? newsPool : newsPool.filter(i => i.tagId === activeTag.id);
     if (timeFilter > 0) filtered = filtered.filter(item => (Date.now() - item.timestamp) <= timeFilter * 60000);
     if (searchTerm.trim() !== "") filtered = filtered.filter(i => i.baslik.toLowerCase().includes(searchTerm.toLowerCase()));
-    const radar = []; const sourceCount = {};
-    for (const item of filtered) {
-      if (radar.length >= 40) break;
-      if (!sourceCount[item.kaynak] || sourceCount[item.kaynak] < 5) { radar.push(item); sourceCount[item.kaynak] = (sourceCount[item.kaynak] || 0) + 1; }
-    }
-    return { radar, archive: filtered.filter(f => !radar.find(r => r.id === f.id)).slice(0, 500) };
+    
+    // Zaman hiyerarşisine göre tam kesim: İlk 40 Radar, sonrası Arşiv
+    return { 
+      radar: filtered.slice(0, 40), 
+      archive: filtered.slice(40, 540) 
+    };
   }, [newsPool, activeTag, searchTerm, timeFilter]);
 
   const getDynamicTime = (ts) => {
