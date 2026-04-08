@@ -371,7 +371,7 @@ export default function GlobalHaberler() {
         font { pointer-events: none !important; background-color: transparent !important; box-shadow: none !important; }
         .news-card::after, .archive-card::after, .shielded-text::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; background: transparent; }
         .share-icon-mini, .modal-body button, .modal-body a { z-index: 10; position: relative; }
-        .translate-wrapper { min-width: 140px; height: 26px; overflow: hidden; display: flex; align-items: center; border-radius: 4px; margin: 0 !important; padding: 0 !important; }
+        .translate-wrapper { min-width: 140px; display: flex; align-items: center; border-radius: 4px; margin: 0 !important; padding: 0 !important; position: relative; z-index: 10; }
         .top-header-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 55px 32px 10px; background: #000000; text-align: center; }
         .title-wrapper { display: flex; align-items: center; justify-content: center; gap: 0px; }
         .header-text-group { display: flex; flex-direction: column; align-items: center; }
@@ -449,7 +449,7 @@ export default function GlobalHaberler() {
               {isUpdating ? "SYNCING..." : `SYNC: ${timeLeft}s`}
             </div>
           </div>
-          <div className="toolbar-sub-row" style={{ marginTop: "8px", display: "flex", justifyContent: "flex-start", padding: 0, margin: 0 }}>
+          <div className="toolbar-sub-row" style={{ marginTop: "18px", display: "flex", justifyContent: "flex-start", paddingLeft: "4px" }}>
             <div className="translate-wrapper"><div id="google_translate_element"></div></div>
           </div>
         </div>
