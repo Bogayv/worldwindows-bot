@@ -24,7 +24,7 @@ async function sendPush(newsItem) {
       headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
       body: JSON.stringify({
         app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-        included_segments: ["Subscribed Users"],
+        included_segments: ["Subscribed Users", "Total Subscriptions", "Active Users", "All"],
         headings: { en: `🌍 ${newsItem.kaynak}` },
         contents: { en: newsItem.baslik },
         chrome_web_image: "https://www.worldwindows.network/logo.jpeg",
