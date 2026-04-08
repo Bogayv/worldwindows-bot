@@ -122,7 +122,7 @@ export default function GlobalHaberler() {
     window.OneSignalDeferred.push(async function(OneSignal) {
       await OneSignal.init({
         appId: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-        safari_web_id: "web.onesignal.auto.4c3d1977-4ffa-4227-8665-758fe36cce73",
+        safari_web_id: "web.onesignal.auto.61587391-766b-4e08-8e65-3568853b9244",
       });
     });
   }, []);
