@@ -52,25 +52,37 @@ function parseItems(xml, label, feedUrl) {
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
     
-    let link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
-    if (!link) {
-      link = ((block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
-    }
+    // --- BLOOMBERG 404 KÖK ÇÖZÜMÜ ---
+    let link = "";
+    const linkMatchNormal = block.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
+    const linkMatchAtom = block.match(/<link[^>]*href=["']([^"']+)["']/i);
 
-    if (link.startsWith("/")) {
-      link = baseDomain + link;
-    } else if (!link.startsWith("http")) {
-      if (link.startsWith("www.") || link.includes(".com") || link.includes(".net") || link.includes(".tr")) {
-        link = "https://" + link.replace(/^www\./, "");
-      } else {
-        link = baseDomain + "/" + link;
+    if (linkMatchNormal && linkMatchNormal[1].trim() && !linkMatchNormal[1].includes("<")) {
+      link = linkMatchNormal[1];
+    } else if (linkMatchAtom && linkMatchAtom[1].trim()) {
+      link = linkMatchAtom[1];
+    }
+    
+    link = link.replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+
+    // Robot link bulamazsa, guid'in içine baksın (Sadece http ile başlıyorsa kabul etsin)
+    if (!link || (!link.startsWith("http") && !link.startsWith("/") && !link.startsWith("www"))) {
+      const guidMatch = block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
+      const guid = guidMatch ? guidMatch[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim() : "";
+      if (guid.startsWith("http") || guid.startsWith("www")) {
+        link = guid;
       }
     }
 
-    if (link.includes("bloomberght.com") && !link.includes("www.bloomberght.com")) {
-      link = link.replace("bloomberght.com", "www.bloomberght.com");
+    // Linki en güvenli (kesin açılır) formata getir:
+    if (link.startsWith("/")) {
+      link = baseDomain + link;
+    } else if (link.startsWith("www.")) {
+      link = "https://" + link;
+    } else if (!link.startsWith("http")) {
+      // Robot tamamen çuvallarsa bile 404 vermesin, en azından kaynağın ana sayfasına göndersin
+      link = baseDomain; 
     }
-    link = link.replace(/^http:\/\//i, "https://");
 
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
@@ -130,7 +142,6 @@ export default async function handler(req, res) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  // 1. ESKİ HAVUZU GÜVENLE OKU
   let oldPool = [];
   const oldRaw = await upstashCmd(REDIS_URL, REDIS_TOKEN, ["GET", "ww_global_pool"]);
   if (oldRaw) {
@@ -141,7 +152,6 @@ export default async function handler(req, res) {
     } catch(e) { oldPool = []; }
   }
 
-  // 2. YENİ HABERLERİ ÇEK
   const fetchPromises = FEEDS.map(async (f) => {
     try {
       const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
@@ -152,7 +162,6 @@ export default async function handler(req, res) {
   const rawResults = await Promise.all(fetchPromises);
   const freshItems = rawResults.flat();
 
-  // 3. HAVUZLARI BİRLEŞTİR VE ZAMANA GÖRE DİZ (600 Habere Kadar)
   const combinedMap = new Map();
   oldPool.forEach(item => combinedMap.set(item.id, item));
   freshItems.forEach(item => combinedMap.set(item.id, item));
@@ -161,10 +170,8 @@ export default async function handler(req, res) {
     .sort((a,b) => b.timestamp - a.timestamp)
     .slice(0, 600);
 
-  // 4. BİRLEŞMİŞ HAVUZU ÇÖKMEYECEK ŞEKİLDE KAYDET (3 Günlük Süre = 259200 sn)
   await upstashCmd(REDIS_URL, REDIS_TOKEN, ["SET", "ww_global_pool", JSON.stringify(finalPool), "EX", 259200]);
 
-  // 5. BİLDİRİMLERİ SADECE YENİ DÜŞEN HABERLERDEN AT
   let pushed = 0;
   const newestFreshItems = freshItems.sort((a,b) => b.timestamp - a.timestamp);
   
