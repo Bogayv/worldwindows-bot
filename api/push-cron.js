@@ -1,111 +1,121 @@
-let onesignalError = null;
-
-async function redisGet(url, token, key) {
-  if (!url || !token) return null;
-  try {
-    const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json();
-    return data.result ? JSON.parse(data.result) : null;
-  } catch(e) { return null; }
-}
-
-async function redisSet(url, token, key, value) {
-  if (!url || !token) return;
-  try {
-    await fetch(`${url}/set/${encodeURIComponent(key)}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(value) });
-  } catch(e) {}
-}
-
 async function sendPush(newsItem) {
   const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
-  const targetUrl = `https://www.worldwindows.network/?newsId=${newsItem.id}`;
-  
-  try {
-    const res = await fetch("https://onesignal.com/api/v1/notifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
-      body: JSON.stringify({
-        app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-        included_segments: ["Subscribed Users", "Active Users", "All"],
-        headings: { en: `🌍 ${newsItem.kaynak}` },
-        contents: { en: newsItem.baslik },
-        chrome_web_image: "https://www.worldwindows.network/logo.jpeg",
-        web_url: targetUrl, // Sadece web_url kullanıyoruz, çakışmayı bitiriyoruz
-        web_push_topic: newsItem.id
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) onesignalError = data;
-    return res.ok;
-  } catch(e) { onesignalError = e.message; return false; }
+  if (!REST_KEY) return false;
+  const res = await fetch("https://onesignal.com/api/v1/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
+    body: JSON.stringify({
+      app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
+      included_segments: ["All"],
+      headings: { en: `🌍 ${newsItem.kaynak}` },
+      contents: { en: newsItem.baslik.slice(0, 200) },
+      url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
+      chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
+      web_push_topic: newsItem.id,
+      android_group: newsItem.id,
+      collapse_id: newsItem.id
+    })
+  });
+  return res.ok;
 }
 
-function parseItems(xmlText, label) {
+async function redisOps(url, token, cmd, key, val = null, ex = null) {
+  let finalUrl = `${url}/${cmd}/${encodeURIComponent(key)}`;
+  if (val) finalUrl += `/${encodeURIComponent(val)}`;
+  if (ex) finalUrl += `/EX/${ex}`;
+  const res = await fetch(finalUrl, { method: val ? "POST" : "GET", headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  return data.result;
+}
+
+function parseItems(xml, label) {
   const items = [];
-  const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/g;
-  let match;
-  while ((match = itemRegex.exec(xmlText)) !== null && items.length < 2) {
-    const block = match[1];
-    const titleMatch = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/);
-    const title = titleMatch ? titleMatch[1].trim() : "";
-    if (title && title.length > 10) {
-      const newsId = Buffer.from(title.slice(0, 30)).toString("base64").replace(/[^a-zA-Z0-9]/g, "");
-      items.push({ id: newsId, baslik: title, kaynak: label });
+  const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
+  for (let block of blocks.slice(0, 5)) {
+    const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
+    const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
+    const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
+    if (!title) continue;
+    
+    let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
+    let timestamp = Date.now();
+    if (pubDateRaw) {
+      let cleanDate = pubDateRaw.trim().replace(/\s+[A-Z]{3,5}$/i, "");
+      const parsed = Date.parse(cleanDate);
+      if (!isNaN(parsed)) {
+        timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed;
+      }
     }
+
+    const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
+    let imageUrl = block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] || block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || "https://worldwindows.network/logo.jpeg";
+    
+    items.push({ id, baslik: title, detay: title, kaynak: label, url: link, img: imageUrl, timestamp });
   }
   return items;
 }
 
 export default async function handler(req, res) {
-  onesignalError = null;
-  const REDIS_URL = (process.env.UPSTASH_REDIS_REST_URL || "").replace(/"/g,"").trim();
-  const REDIS_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || "").replace(/"/g,"").trim();
+  const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/"/g,"").trim();
+  const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/"/g,"").trim();
 
   const FEEDS = [
     { url: "https://www.reutersagency.com/feed/", label: "Reuters" },
+    { url: "https://www.ft.com/?format=rss", label: "Financial Times" },
     { url: "https://www.bloomberght.com/rss", label: "Bloomberg HT" },
-    { url: "https://www.ntv.com.tr/ekonomi.rss", label: "NTV" },
-    { url: "https://www.sozcu.com.tr/feeds-son-dakika", label: "Sözcü" },
-    { url: "https://www.ekonomim.com/rss", label: "Ekonomim" },
-    { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" },
+    { url: "https://www.economist.com/sections/economics/rss.xml", label: "The Economist" },
+    { url: "https://www.wsj.com/xml/rss/3_7014.xml", label: "WSJ" },
+    { url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", label: "NY Times" },
+    { url: "https://www.politico.com/rss/politicopicks.xml", label: "Politico" },
+    { url: "https://www.aljazeera.com/xml/rss/all.xml", label: "Al Jazeera" },
+    { url: "https://feeds.barrons.com/v1/barrons/rss?xml=1", label: "Barrons" },
     { url: "https://cointelegraph.com/rss", label: "CoinTelegraph" },
     { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", label: "CoinDesk" },
-    { url: "https://www.kitco.com/rss/index.xml", label: "Kitco" },
-    { url: "https://www.investing.com/rss/news_95.rss", label: "Investing Gold" },
-    { url: "https://www.investing.com/rss/market_overview_287.rss", label: "Investing Silver" },
-    { url: "https://www.ft.com/markets?format=rss", label: "FT Markets" },
-    { url: "https://asia.nikkei.com/rss/feed/category/53", label: "Nikkei Asia" },
+    { url: "https://gazeteoksijen.com/rss", label: "Gazete Oksijen" },
     { url: "https://tr.euronews.com/rss?level=vertical&type=all", label: "Euronews TR" },
+    { url: "https://www.ntv.com.tr/ekonomi.rss", label: "NTV" },
+    { url: "https://www.sozcu.com.tr/feeds-son-dakika", label: "Sözcü" },
+    { url: "https://www.foreignaffairs.com/rss.xml", label: "Foreign Affairs" },
+    { url: "https://asia.nikkei.com/rss/feed/category/53", label: "Nikkei Asia" },
+    { url: "https://www.scmp.com/rss/4/feed", label: "SCMP" },
+    { url: "https://en.yna.co.kr/RSS/news.xml", label: "Yonhap" },
+    { url: "https://rss.dw.com/rdf/rss-en-all", label: "Deutsche Welle" },
+    { url: "https://www.france24.com/en/rss", label: "France 24" },
+    { url: "https://www.abc.net.au/news/feed/45910/rss.xml", label: "ABC Australia" },
+    { url: "https://www.cnbc.com/id/10000664/device/rss/rss.html", label: "CNBC" },
+    { url: "https://www.theguardian.com/world/rss", label: "The Guardian" },
     { url: "https://www.paraanaliz.com/feed/", label: "Para Analiz" },
-    { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" }
+    { url: "https://www.kitco.com/rss/index.xml", label: "Kitco" },
+    { url: "http://feeds.bbci.co.uk/news/world/rss.xml", label: "BBC News" },
+    { url: "https://www.borsagundem.com.tr/rss", label: "Borsa Gündem" },
+    { url: "https://www.ekonomim.com/rss", label: "Ekonomim" },
+    { url: "https://www.hisse.net/haber/?feed=rss2", label: "Hisse.net" },
+    { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  const results = await Promise.all(FEEDS.map(async f => {
+  const rawResults = await Promise.all(FEEDS.map(async f => {
     try {
-      const r = await fetch(f.url, { signal: AbortSignal.timeout(3000) });
+      const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
       return parseItems(await r.text(), f.label);
-    } catch { return []; }
+    } catch(e) { return []; }
   }));
 
-  const allFoundNews = results.flat();
-  let pushedCount = 0;
+  const newsPool = rawResults.flat().sort((a,b) => b.timestamp - a.timestamp);
+  
+  // MERKEZİ HAVUZU KAYDET (200 Haber)
+  await redisOps(REDIS_URL, REDIS_TOKEN, "set", "ww_global_pool", JSON.stringify(newsPool.slice(0, 200)), 259200);
 
-  for (const item of allFoundNews) {
-    if (pushedCount >= 3) break;
-    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
-    if (!isSent) {
-      const ok = await sendPush(item);
-      if (ok) {
-        await redisSet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
-        pushedCount++;
-      }
+  let pushed = 0;
+  for (const item of newsPool.slice(0, 10)) {
+    const isSent = await redisOps(REDIS_URL, REDIS_TOKEN, "get", `sent_${item.id}`);
+    if (isSent === "true") continue;
+    
+    if (await sendPush(item)) {
+      await redisOps(REDIS_URL, REDIS_TOKEN, "set", `sent_${item.id}`, "true", 259200);
+      pushed++;
+      await new Promise(r => setTimeout(r, 4000));
     }
   }
 
-  res.status(200).json({ 
-    pushed: pushedCount, 
-    scanned: FEEDS.length, 
-    status: onesignalError ? "HATA" : "BASARILI",
-    details: onesignalError 
-  });
+  return res.status(200).json({ ok: true, pool: newsPool.length, pushed });
 }
