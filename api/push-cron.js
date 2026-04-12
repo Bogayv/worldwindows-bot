@@ -33,6 +33,20 @@ async function sendPush(newsItem) {
   } catch(e) { return false; }
 }
 
+// 🪄 ŞİFRE ÇÖZÜCÜ EKLENDİ: Tüm o garip HTML kodlarını gerçek noktalama işaretlerine çevirir
+function decodeHtml(html) {
+  if (!html) return "";
+  return html
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/gi, "'")  // İşte o Bebek&#x27;teki hatasını çözen satır
+    .replace(/&apos;/g, "'")
+    .replace(/&#x2F;/gi, "/");
+}
+
 function parseItems(xml, label, feedUrl) {
   const items = [];
   const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
@@ -49,10 +63,11 @@ function parseItems(xml, label, feedUrl) {
   for (let i = 0; i < Math.min(blocks.length, 5); i++) {
     const block = blocks[i];
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
-    const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
+    
+    // Şifre çözücüyü başlığa uyguluyoruz
+    const title = decodeHtml(titleRaw).trim();
     if (!title) continue;
     
-    // --- BLOOMBERG 404 KÖK ÇÖZÜMÜ ---
     let link = "";
     const linkMatchNormal = block.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
     const linkMatchAtom = block.match(/<link[^>]*href=["']([^"']+)["']/i);
@@ -65,7 +80,6 @@ function parseItems(xml, label, feedUrl) {
     
     link = link.replace(/<!\[CDATA\[|\]\]>/g, "").trim();
 
-    // Robot link bulamazsa, guid'in içine baksın (Sadece http ile başlıyorsa kabul etsin)
     if (!link || (!link.startsWith("http") && !link.startsWith("/") && !link.startsWith("www"))) {
       const guidMatch = block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
       const guid = guidMatch ? guidMatch[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim() : "";
@@ -74,13 +88,11 @@ function parseItems(xml, label, feedUrl) {
       }
     }
 
-    // Linki en güvenli (kesin açılır) formata getir:
     if (link.startsWith("/")) {
       link = baseDomain + link;
     } else if (link.startsWith("www.")) {
       link = "https://" + link;
     } else if (!link.startsWith("http")) {
-      // Robot tamamen çuvallarsa bile 404 vermesin, en azından kaynağın ana sayfasına göndersin
       link = baseDomain; 
     }
 
@@ -95,9 +107,12 @@ function parseItems(xml, label, feedUrl) {
     const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
     let imageUrl = block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] || block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || "https://worldwindows.network/logo.jpeg";
     
-    let detail = title;
+    let detailRaw = title;
     let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
-    if (descMatch && descMatch[1]) detail = descMatch[1].replace(/<[^>]*>?/gm, '').trim();
+    if (descMatch && descMatch[1]) detailRaw = descMatch[1].replace(/<[^>]*>?/gm, '').trim();
+    
+    // Şifre çözücüyü haber detayına da uyguluyoruz
+    let detail = decodeHtml(detailRaw);
 
     items.push({ id, baslik: title, detay: detail, kaynak: label, url: link, img: imageUrl, timestamp });
   }
