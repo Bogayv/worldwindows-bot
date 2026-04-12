@@ -33,7 +33,6 @@ async function sendPush(newsItem) {
   } catch(e) { return false; }
 }
 
-// 🪄 ŞİFRE ÇÖZÜCÜ EKLENDİ: Tüm o garip HTML kodlarını gerçek noktalama işaretlerine çevirir
 function decodeHtml(html) {
   if (!html) return "";
   return html
@@ -42,7 +41,7 @@ function decodeHtml(html) {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&#x27;/gi, "'")  // İşte o Bebek&#x27;teki hatasını çözen satır
+    .replace(/&#x27;/gi, "'")
     .replace(/&apos;/g, "'")
     .replace(/&#x2F;/gi, "/");
 }
@@ -63,8 +62,6 @@ function parseItems(xml, label, feedUrl) {
   for (let i = 0; i < Math.min(blocks.length, 5); i++) {
     const block = blocks[i];
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
-    
-    // Şifre çözücüyü başlığa uyguluyoruz
     const title = decodeHtml(titleRaw).trim();
     if (!title) continue;
     
@@ -110,8 +107,6 @@ function parseItems(xml, label, feedUrl) {
     let detailRaw = title;
     let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
     if (descMatch && descMatch[1]) detailRaw = descMatch[1].replace(/<[^>]*>?/gm, '').trim();
-    
-    // Şifre çözücüyü haber detayına da uyguluyoruz
     let detail = decodeHtml(detailRaw);
 
     items.push({ id, baslik: title, detay: detail, kaynak: label, url: link, img: imageUrl, timestamp });
@@ -157,6 +152,7 @@ export default async function handler(req, res) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
+  // 1. Eski havuzu çek
   let oldPool = [];
   const oldRaw = await upstashCmd(REDIS_URL, REDIS_TOKEN, ["GET", "ww_global_pool"]);
   if (oldRaw) {
@@ -167,6 +163,7 @@ export default async function handler(req, res) {
     } catch(e) { oldPool = []; }
   }
 
+  // 2. Yeni haberleri getir
   const fetchPromises = FEEDS.map(async (f) => {
     try {
       const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
@@ -179,18 +176,35 @@ export default async function handler(req, res) {
 
   const combinedMap = new Map();
   oldPool.forEach(item => combinedMap.set(item.id, item));
-  freshItems.forEach(item => combinedMap.set(item.id, item));
   
+  let pushed = 0;
+  let newItemsForPush = [];
+
+  // --- 👑 ZAMAN HİYERARŞİSİ DÜZELTMESİ (RADAR KONTROLÜ) ---
+  let offset = 0;
+  freshItems.forEach(item => {
+    if (!combinedMap.has(item.id)) {
+      // YEPYENİ BİR HABER: Ajansın saatine bakma, zamanı "ŞU AN" olarak damgala. Radar'da #1 olacak.
+      item.timestamp = Date.now() + offset; 
+      offset++; // Aynı saniyede gelenleri sıralamak için
+      newItemsForPush.push(item);
+    } else {
+      // ESKİ HABER: Orijinal zamanını koru, aşağı doğru kaysın.
+      item.timestamp = combinedMap.get(item.id).timestamp;
+    }
+    combinedMap.set(item.id, item);
+  });
+  
+  // Havuzu son kez sırala ve kaydet
   const finalPool = Array.from(combinedMap.values())
     .sort((a,b) => b.timestamp - a.timestamp)
     .slice(0, 600);
 
   await upstashCmd(REDIS_URL, REDIS_TOKEN, ["SET", "ww_global_pool", JSON.stringify(finalPool), "EX", 259200]);
 
-  let pushed = 0;
-  const newestFreshItems = freshItems.sort((a,b) => b.timestamp - a.timestamp);
-  
-  for (const item of newestFreshItems.slice(0, 15)) {
+  // Yeni olanlardan bildirim at
+  newItemsForPush.sort((a,b) => b.timestamp - a.timestamp);
+  for (const item of newItemsForPush.slice(0, 15)) {
     if (pushed >= 10) break;
     const isSent = await upstashCmd(REDIS_URL, REDIS_TOKEN, ["GET", `sent_${item.id}`]);
     if (isSent === "true") continue;
