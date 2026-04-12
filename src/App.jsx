@@ -4,17 +4,17 @@ import { ThemeProvider, useTheme } from "next-themes";
 
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL", urls: [] },
-  { id: "trump", label: "TRUMP", urls: []},
-  { id: "war", label: "WAR", urls: []},
-  { id: "ekonomi", label: "ECONOMY", urls: []},
-  { id: "finans", label: "FINANCE", urls: []},
-  { id: "kripto", label: "CRYPTO", urls: []},
-  { id: "asya", label: "ASIA PACIFIC", urls: []},
-  { id: "jeopolitik", label: "GEOPOLITICS", urls: []},
-  { id: "siyaset", label: "POLITICS", urls: []},
-  { id: "gold", label: "GOLD", urls: []},
-  { id: "silver", label: "SILVER", urls: []},
-  { id: "borsa", label: "MARKETS", urls: []},
+  { id: "trump", label: "TRUMP", urls: [] },
+  { id: "war", label: "WAR", urls: [] },
+  { id: "ekonomi", label: "ECONOMY", urls: [] },
+  { id: "finans", label: "FINANCE", urls: [] },
+  { id: "kripto", label: "CRYPTO", urls: [] },
+  { id: "asya", label: "ASIA PACIFIC", urls: [] },
+  { id: "jeopolitik", label: "GEOPOLITICS", urls: [] },
+  { id: "siyaset", label: "POLITICS", urls: [] },
+  { id: "gold", label: "GOLD", urls: [] },
+  { id: "silver", label: "SILVER", urls: [] },
+  { id: "borsa", label: "MARKETS", urls: [] },
 ];
 
 const SOURCE_LINKS = [
@@ -128,18 +128,6 @@ export default function GlobalHaberler() {
   }, [newsPool]);
 
   useEffect(() => {
-    const hasSeenPrompt = localStorage.getItem('ww_welcome_sub_shown');
-    if (!hasSeenPrompt) {
-      const timer = setTimeout(() => {
-        setSubStatus(""); setPushStatus("");
-        setModalType('subscribe');
-        localStorage.setItem('ww_welcome_sub_shown', 'true');
-      }, 10000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  useEffect(() => {
     const updateHeader = () => {
       document.title = "WORLD WINDOWS";
       let link = document.querySelector("link[rel~='icon']");
@@ -186,37 +174,27 @@ export default function GlobalHaberler() {
 
   useEffect(() => { fetchCollectiveNews(); setTimeLeft(60); }, []);
 
-  // İŞTE BÜTÜN HIZIN KAYNAĞI OLAN YENİ FONKSİYON (Sadece Havuzdan Çeker)
   async function fetchCollectiveNews() {
     setIsUpdating(true);
     try {
       const res = await fetch('/api/news_pool?_t=' + Date.now());
       if (res.ok) {
         const data = await res.json();
-        if (data.news && data.news.length > 0) {
-          setNewsPool(data.news);
-        }
+        if (data.news && data.news.length > 0) setNewsPool(data.news);
       }
     } catch (e) {
       console.error("Havuz çekilemedi", e);
     } finally {
-      setTimeout(() => setIsUpdating(false), 500);
+      setTimeout(() => setIsUpdating(false), 800);
     }
   }
 
-  // ETİKETLERE GÖRE LOKAL FİLTRELEME
   const displayData = useMemo(() => {
     let filtered = newsPool;
-    
-    // Basit bir kelime filtresi (Eğer etiketlere özel kelimeler istersen burayı geliştirebiliriz)
     if (activeTag.id !== "all") {
-      const tagLower = activeTag.label.toLowerCase();
-      filtered = filtered.filter(n => 
-        n.baslik.toLowerCase().includes(tagLower) || 
-        n.detay?.toLowerCase().includes(tagLower)
-      );
+        const tagLower = activeTag.label.toLowerCase();
+        filtered = filtered.filter(n => n.baslik.toLowerCase().includes(tagLower) || (n.detay && n.detay.toLowerCase().includes(tagLower)));
     }
-
     if (timeFilter > 0) filtered = filtered.filter(item => (Date.now() - item.timestamp) <= timeFilter * 60000);
     if (searchTerm.trim() !== "") filtered = filtered.filter(i => i.baslik.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -237,11 +215,8 @@ export default function GlobalHaberler() {
 
   const shareNewsGeneral = (e, n) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    const displayTitle = n.baslik;
     const shareUrl = `${window.location.origin}${window.location.pathname}?newsId=${n.id}`;
-    const hashtags = "#bist100 #borsa #dolar #altın #gümüş #usdtry #xauusd #gold #silver #xagusd";
-    const cashtags = "$xauusd $gold $silver $xagusd $brent $spx $ndx $dji";
-    const textToShare = `${displayTitle}\n\n${hashtags}\n${cashtags}`;
+    const textToShare = `${n.baslik}\n\n#bist100 #borsa #worldwindows`;
     if (navigator.share) { navigator.share({ title: "WORLD WINDOWS", text: textToShare, url: shareUrl }).catch(() => {}); }
     else { navigator.clipboard.writeText(`${textToShare}\n${shareUrl}`).then(() => alert("🔗 Link Copied!")); }
   };
@@ -251,6 +226,30 @@ export default function GlobalHaberler() {
     const originUrl = "https://worldwindows.network";
     if (navigator.share) { navigator.share({ url: originUrl }).catch(() => {}); }
     else { navigator.clipboard.writeText(originUrl).then(() => alert("🔗 Link Copied!")); }
+  };
+
+  const handleEmailSubscribe = async () => {
+    if (!subEmail || !subEmail.includes("@")) { setSubStatus("invalid"); return; }
+    setSubStatus("loading");
+    try {
+      const r = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subEmail })
+      });
+      if (r.ok) { setSubStatus("success"); setSubEmail(""); } else { setSubStatus("error"); }
+    } catch { setSubStatus("error"); }
+  };
+
+  const handlePushSubscribe = () => {
+    setPushStatus("loading");
+    if (!("Notification" in window)) { setPushStatus("unsupported"); return; }
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        window.OneSignalDeferred.push(async (OneSignal) => { await OneSignal.User.PushSubscription.optIn(); });
+        setPushStatus("granted");
+      } else { setPushStatus("denied"); }
+    });
   };
 
   const openModalWithLink = (n) => { setSelectedNews(n); setModalType('news'); window.history.pushState({}, '', `?newsId=${n.id}`); };
@@ -267,34 +266,18 @@ export default function GlobalHaberler() {
         :root[class~="light"] .tag-pill { background: #eee !important; color: #333 !important; border: 1px solid #ccc !important; }
         :root[class~="light"] .tag-pill.active { background: #c9a96e !important; color: #000 !important; }
         :root[class~="light"] header { background: #ffffff !important; }
-        :root[class~="light"] .top-header-container { background: #ffffff !important; }
         :root[class~="light"] h3, :root[class~="light"] h4 { color: #111 !important; }
-        :root[class~="light"] .time-select-mini, :root[class~="light"] .font-btn { background: #fff !important; color: #111 !important; border-color: #aaa !important; }
-        :root[class~="light"] .search-mini { color: #111 !important; }
-        :root[class~="light"] .modal-content { background: #ffffff !important; }
-        :root[class~="light"] .shielded-text p { color: #333 !important; }
-        :root[class~="light"] .shielded-text h2 { color: #111 !important; }
-        body { top: 0px !important; position: static !important; margin: 0; padding: 0; }
-        .goog-te-banner-frame, .goog-te-balloon-frame, .goog-tooltip, .goog-text-highlight { display: none !important; pointer-events: none !important; }
-        font { pointer-events: none !important; background-color: transparent !important; box-shadow: none !important; }
-        .news-card::after, .archive-card::after, .shielded-text::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; background: transparent; }
-        .share-icon-mini, .modal-body button, .modal-body a { z-index: 10; position: relative; }
-        .translate-wrapper { width: 95px; height: 26px; overflow: hidden; display: inline-block; border-radius: 4px; }
         .top-header-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 55px 32px 10px; background: #000000; text-align: center; }
-        .title-wrapper { display: flex; align-items: center; justify-content: center; gap: 0px; }
-        .header-text-group { display: flex; flex-direction: column; align-items: center; }
         .header-title { font-family: 'Playfair Display', serif; font-size: 82px; color: #c9a96e; font-weight: 900; margin: 0; line-height: 0.8; letter-spacing: -3px; text-transform: uppercase; }
         .header-logo { width: 165px; height: 165px; object-fit: contain; }
-        .slogan-text { font-family: 'Dancing Script', cursive; font-size: 24px; color: #c9a96e; margin-top: 12px; font-style: italic; text-align: center; width: auto; }
+        .slogan-text { font-family: 'Dancing Script', cursive; font-size: 24px; color: #c9a96e; margin-top: 12px; font-style: italic; }
         .toolbar-container { padding: 0 32px; margin-top: 5px; margin-bottom: 25px; width: 100%; box-sizing: border-box; }
         .toolbar-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .toolbar-left-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .search-mini, .time-select-mini { width: 110px; padding: 4px 10px; background: transparent; border: 1px solid #c9a96e; border-radius: 4px; color: #c9a96e; font-size: 11px; outline: none; height: 26px; }
-        .time-select-mini { background: #080c14; cursor: pointer; font-weight: bold; }
-        .font-btn { background: #080c14; border: 1px solid #c9a96e; color: #c9a96e; width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
-        .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; }
+        .search-mini, .time-select-mini { width: 110px; padding: 4px 10px; background: transparent; border: 1px solid #c9a96e; border-radius: 4px; color: #c9a96e; font-size: 11px; outline: none; }
+        .font-btn { background: #080c14; border: 1px solid #c9a96e; color: #c9a96e; width: 26px; height: 26px; border-radius: 4px; cursor: pointer; }
+        .radar-container { overflow-x: auto; display: flex; gap: 20px; padding: 20px 32px 40px; scroll-snap-type: x mandatory; }
         .news-card { min-width: 400px; max-width: 400px; background: #0d1424; border: 1px solid #1e2d4a; border-radius: 12px; cursor: pointer; overflow: hidden; position: relative; scroll-snap-align: start; }
-        .news-card img { width: 100%; height: 220px; object-fit: cover; border-bottom: 3px solid #c9a96e; background: #000; }
+        .news-card img { width: 100%; height: 220px; object-fit: cover; border-bottom: 3px solid #c9a96e; }
         .time-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #c9a96e; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #c9a96e; z-index: 10; }
         .tag-bar { display: flex; gap: 8px; overflow-x: auto; padding: 15px 32px; background: #0d1424; border-bottom: 1px solid #1e2d4a; position: sticky; top: 0; z-index: 100; }
         .tag-pill { padding: 8px 16px; background: #080c14; border: 1px solid #1e2d4a; border-radius: 4px; color: #4a6080; font-size: 10px; font-weight: 900; cursor: pointer; white-space: nowrap; text-transform: uppercase; }
@@ -303,61 +286,48 @@ export default function GlobalHaberler() {
         .archive-card { background: #0d1424; border: 1px solid #1e2d4a; border-radius: 10px; padding: 25px; border-left: 4px solid #1e2d4a; cursor: pointer; position: relative; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8,12,20,0.98); z-index: 10000; display: flex; justify-content: center; align-items: center; }
         .modal-content { background: #0d1424; border: 2px solid #c9a96e; border-radius: 12px; width: 800px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-        .modal-body { flex: 1; overflow-y: auto; padding: 30px; -webkit-overflow-scrolling: touch; }
-        .modal-detail-img { width: 100%; height: 350px; object-fit: cover; border-radius: 8px; margin-bottom: 20px; background: #000; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 30px; }
+        .modal-detail-img { width: 100%; height: 350px; object-fit: cover; border-radius: 8px; margin-bottom: 20px; }
+        .sub-section { border: 1px solid #1e2d4a; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+        .sub-input { width: 100%; background: #080c14; border: 1px solid #1e2d4a; color: #e8e6e0; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .sub-btn-gold { background: #c9a96e; color: #080c14; border: none; padding: 11px; border-radius: 4px; cursor: pointer; font-weight: 900; width: 100%; }
         @media (max-width: 768px) {
-          .app-container { zoom: 0.8 !important; }
           .header-title { font-size: 58px; } .header-logo { width: 120px; height: 120px; }
-          .archive-grid { grid-template-columns: 1fr; padding: 15px; } .toolbar-container { padding: 0 15px; }
-          .modal-content { width: auto; position: fixed; top: 5% !important; bottom: 5% !important; left: 15px !important; right: 15px !important; height: 90% !important; max-height: none; display: flex; flex-direction: column; }
-          .modal-detail-img { height: 200px; }
+          .modal-content { width: 95%; height: 90%; }
         }
       `}</style>
       <header style={{ background: "#000000" }}>
         <div className="top-header-container notranslate">
-          <div className="title-wrapper">
-            <img src="./logo.jpeg" className="header-logo" alt="Logo" />
-            <div className="header-text-group">
-              <h1 className="header-title">WORLD<br/>WINDOWS</h1>
-              <div className="slogan-text">Global news to understand the world</div>
-            </div>
-          </div>
+          <img src="./logo.jpeg" className="header-logo" alt="Logo" />
+          <h1 className="header-title">WORLD<br/>WINDOWS</h1>
+          <div className="slogan-text">Global news to understand the world</div>
         </div>
         <TradingViewLiveTicker />
         <div className="toolbar-container notranslate">
           <div className="toolbar-main-row">
-            <div className="toolbar-left-group">
+            <div style={{ display: "flex", gap: "8px" }}>
               <select className="time-select-mini" value={timeFilter} onChange={(e) => setTimeFilter(Number(e.target.value))}>
-                <option value="1440">24h</option>
-                <option value="60">1h</option>
-                <option value="240">4h</option>
+                <option value="1440">24h</option><option value="60">1h</option><option value="240">4h</option>
               </select>
               <input type="text" placeholder="Search..." className="search-mini" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               <button className="font-btn" onClick={() => setFontSize(f => Math.max(10, f-2))}>A-</button>
               <button className="font-btn" onClick={() => setFontSize(f => Math.min(24, f+2))}>A+</button>
               <button className="font-btn" onClick={shareGeneral} title="Share Terminal">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              </button>
+              <button className="font-btn" onClick={() => setModalType('subscribe')} title="Subscribe" style={{borderColor:"#c9a96e", color:"#c9a96e"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
               </button>
             </div>
-            <div onClick={() => { if(!isUpdating) { setTimeLeft(60); fetchCollectiveNews(); } }} style={{ fontSize: "12px", color: isUpdating ? "#00d46a" : "#c9a96e", fontWeight: "bold", marginLeft: "auto", transition: "color 0.3s ease", cursor: "pointer" }} title="Click to force refresh">
+            <div onClick={fetchCollectiveNews} style={{ fontSize: "12px", color: isUpdating ? "#00d46a" : "#c9a96e", fontWeight: "bold", cursor: "pointer" }}>
               {isUpdating ? "SYNCING..." : `SYNC: ${timeLeft}s`}
             </div>
           </div>
-          <div className="toolbar-sub-row" style={{ marginTop: "8px", display: "flex", justifyContent: "flex-start" }}>
-            <div className="translate-wrapper"><div id="google_translate_element"></div></div>
-          </div>
+          <div style={{ marginTop: "8px" }}><div id="google_translate_element"></div></div>
         </div>
       </header>
       <main>
-        <div style={{ padding: "0 32px 20px", textAlign: "center" }}>
-          <div style={{fontFamily:"'Dancing Script'", fontSize:"24px", color:"#c9a96e", fontWeight:"700"}}>Are you ready to discover the world...</div>
-        </div>
         <div className="tag-bar">{GLOBAL_TAGS.map(t => (<div key={t.id} className={`tag-pill ${activeTag.id === t.id ? 'active' : ''}`} onClick={() => setActiveTag(t)}>#{t.label}</div>))}</div>
-        
-        {displayData.radar.length === 0 && !isUpdating && (
-          <div style={{textAlign: 'center', padding: '50px', color: '#8a9ab0'}}>News pool is syncing, please wait...</div>
-        )}
-
         <div className="radar-container">
           {displayData.radar.map(n => (
             <div key={n.id} className="news-card" onClick={() => openModalWithLink(n)}>
@@ -365,19 +335,25 @@ export default function GlobalHaberler() {
               <img src={n.img} alt="News" />
               <div style={{ padding: "15px" }}>
                 <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px" }}>{n.kaynak.toUpperCase()}</div>
-                <h3 id={`news-title-${n.id}`} style={{ fontSize: `${fontSize}px`, color: "#e8e6e0", margin: "8px 0 0" }}>{n.baslik}</h3>
+                <h3 style={{ fontSize: `${fontSize}px`, color: "#e8e6e0", margin: "8px 0 0" }}>{n.baslik}</h3>
               </div>
+              <button className="share-icon-mini" style={{position:"absolute", bottom:"10px", right:"10px", background:"none", border:"none", color:"#4a6080", cursor:"pointer"}} onClick={(e) => shareNewsGeneral(e, n)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              </button>
             </div>
           ))}
         </div>
         <div style={{ padding: "0 32px", marginTop: "30px" }}>
-          <h2 style={{ fontFamily: "'Dancing Script'", fontSize: "38px", color: "#c9a96e", borderBottom: "1px solid #1e2d4a", paddingBottom: "10px" }}>News Archive</h2>
+           <h2 style={{ fontFamily: "'Dancing Script'", fontSize: "38px", color: "#c9a96e", borderBottom: "1px solid #1e2d4a" }}>News Archive</h2>
         </div>
         <div className="archive-grid">
           {displayData.archive.map(n => (
             <div key={n.id} className="archive-card" onClick={() => openModalWithLink(n)}>
-              <div className="time-badge-inline notranslate" style={{ fontSize: "10px", color: "#c9a96e", fontWeight: "900", marginBottom: "8px" }}>{n.kaynak.toUpperCase()} • {getDynamicTime(n.timestamp)}</div>
-              <h4 id={`news-title-${n.id}`} style={{ fontSize: `${fontSize-2}px`, margin: "8px 0 0" }}>{n.baslik}</h4>
+              <div style={{ fontSize: "10px", color: "#c9a96e", fontWeight: "900" }}>{n.kaynak.toUpperCase()} • {getDynamicTime(n.timestamp)}</div>
+              <h4 style={{ fontSize: `${fontSize-2}px`, margin: "8px 0 0" }}>{n.baslik}</h4>
+              <button style={{ position: "absolute", bottom: "10px", right: "10px", background: "none", border: "none", color: "#4a6080" }} onClick={(e) => shareNewsGeneral(e, n)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              </button>
             </div>
           ))}
         </div>
@@ -386,23 +362,60 @@ export default function GlobalHaberler() {
         <div style={{ color: "#c9a96e", fontWeight: "900", marginBottom: "5px" }}>WORLD WINDOWS</div>
         <div style={{ display: "flex", justifyContent: "center", gap: "20px", color: "#8a9ab0", fontSize: "10px", fontWeight: "900", flexWrap: "wrap" }}>
           <ThemeToggleButton />
+          <span style={{cursor:"pointer"}} onClick={() => setModalType('about')}>ABOUT US</span>
+          <span style={{cursor:"pointer"}} onClick={() => setModalType('privacy')}>PRIVACY</span>
+          <span style={{cursor:"pointer"}} onClick={() => setModalType('contact')}>CONTACT</span>
+          <span style={{cursor:"pointer"}} onClick={() => setModalType('subscribe')}>🔔 SUBSCRIBE</span>
         </div>
-        <div style={{ color: "#3a5278", fontSize: "10px", marginTop: "30px" }}>© 2026 World Windows Terminal. All Rights Reserved.</div>
       </footer>
       {modalType === 'news' && selectedNews && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <button style={{ position: "absolute", top: "15px", right: "15px", background: "#c9a96e", border: "none", color: "#0d1424", width: "32px", height: "32px", borderRadius: "50%", cursor: "pointer", zIndex: 100 }} onClick={closeModal}>✕</button>
+            <button style={{ position: "absolute", top: "15px", right: "15px", background: "#c9a96e", border: "none", width: "32px", height: "32px", borderRadius: "50%", cursor: "pointer", zIndex: 100 }} onClick={closeModal}>✕</button>
             <div className="modal-body">
               <img src={selectedNews.img} className="modal-detail-img" alt="Detail" />
-              <div className="shielded-text">
-                <div className="notranslate" style={{ color: "#c9a96e", fontWeight: "bold" }}>{selectedNews.kaynak} • {getDynamicTime(selectedNews.timestamp)}</div>
-                <h2 id={`news-title-${selectedNews.id}`} style={{ color: "#fff", margin: "15px 0", fontSize: `${fontSize+4}px` }}>{selectedNews.baslik}</h2>
-                <p style={{ color: "#e8e6e0", lineHeight: "1.6", fontSize: `${fontSize}px` }}>{selectedNews.detay || selectedNews.baslik}</p>
-              </div>
-              <div style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
+              <div style={{ color: "#c9a96e", fontWeight: "bold" }}>{selectedNews.kaynak} • {getDynamicTime(selectedNews.timestamp)}</div>
+              <h2 style={{ color: "#fff", margin: "15px 0", fontSize: `${fontSize+4}px` }}>{selectedNews.baslik}</h2>
+              <p style={{ color: "#e8e6e0", lineHeight: "1.6", fontSize: `${fontSize}px` }}>{selectedNews.detay || selectedNews.baslik}</p>
+              <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                <button onClick={() => { const url=`${window.location.origin}${window.location.pathname}?newsId=${selectedNews.id}`; navigator.clipboard.writeText(url).then(()=>alert("🔗 Copied!")); }} style={{ background: "#1e2d4a", color: "#fff", padding: "12px 20px", border: "none", borderRadius: "4px", cursor: "pointer" }}>🔗 COPY LINK</button>
                 <a href={selectedNews.url} target="_blank" rel="noreferrer" style={{ background: "#c9a96e", color: "#0d1424", padding: "12px 20px", textDecoration: "none", borderRadius: "4px", fontWeight: "bold" }}>SOURCE ↗</a>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {modalType && modalType !== 'news' && (
+        <div className="modal-overlay notranslate" onClick={() => setModalType(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button style={{ position: "absolute", top: "15px", right: "15px", background: "#c9a96e", border: "none", width: "32px", height: "32px", borderRadius: "50%", cursor: "pointer", zIndex: 100 }} onClick={() => setModalType(null)}>✕</button>
+            <div className="modal-body">
+              <h2 style={{ color: "#c9a96e", fontFamily: "'Playfair Display'", fontSize: "32px" }}>{modalType.toUpperCase()}</h2>
+              {modalType === 'about' && (
+                <div>
+                  <p>World Windows is a high-speed news terminal for global intelligence.</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "20px" }}>
+                    {SOURCE_LINKS.map(link => (<a key={link.name} href={link.url} target="_blank" rel="noreferrer" style={{ color: link.color, fontSize: "11px", border: `1px solid ${link.color}50`, padding: "6px", borderRadius: "4px" }}>{link.name} ↗</a>))}
+                  </div>
+                </div>
+              )}
+              {modalType === 'privacy' && <p>We value your privacy. World Windows terminal uses no invasive tracking.</p>}
+              {modalType === 'contact' && <p>Contact us at: <b>worldwindows.network@gmail.com</b></p>}
+              {modalType === 'subscribe' && (
+                <div>
+                  <div className="sub-section">
+                    <p>Browser Alerts:</p>
+                    <button className="sub-btn-gold" onClick={handlePushSubscribe}>🔔 ENABLE ALERTS</button>
+                    {pushStatus === "granted" && <div style={{color:"#00d46a"}}>✓ Enabled!</div>}
+                  </div>
+                  <div className="sub-section">
+                    <p>Email Brief:</p>
+                    <input className="sub-input" type="email" placeholder="email@example.com" value={subEmail} onChange={e => setSubEmail(e.target.value)} />
+                    <button className="sub-btn-gold" onClick={handleEmailSubscribe}>SUBSCRIBE →</button>
+                    {subStatus === "success" && <div style={{color:"#00d46a"}}>✓ Success!</div>}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
