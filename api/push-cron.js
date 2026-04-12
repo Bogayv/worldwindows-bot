@@ -85,18 +85,10 @@ function parseItems(xml, label, feedUrl) {
     
     const id = Buffer.from((feedUrl.slice(0,15) + title.slice(0,30)).replace(/\s/g,'')).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0, 28);
     
-    // ==========================================
-    // 📸 SON ÇARE: KÖRLEMESİNE URL TARAMASI (AL JAZEERA İÇİN)
-    // ==========================================
     let imageUrl = "https://worldwindows.network/logo.jpeg";
-    
-    // Haberin tüm bloğunu hem orijinal hem de şifresi çözülmüş haliyle birleştiriyoruz.
     const rawText = block + " " + decodeHtml(block); 
-    
-    // Metnin içinde etiketlere bakmaksızın "http" ile başlayan TÜM linkleri söküyoruz.
     const allPossibleLinks = rawText.match(/https?:\/\/[^\s"\'<>\[\]]+/gi) || [];
     
-    // Bu linklerin içinden sadece resim dosyası olanları (jpg, jpeg, png, webp) filtreliyoruz.
     const validImageLinks = allPossibleLinks.filter(url => {
         const lowerUrl = url.toLowerCase();
         return (lowerUrl.includes('.jpg') || lowerUrl.includes('.jpeg') || lowerUrl.includes('.png') || lowerUrl.includes('.webp')) &&
@@ -104,11 +96,9 @@ function parseItems(xml, label, feedUrl) {
     });
 
     if (validImageLinks.length > 0) {
-      // Bulunan resimlerden karakter sayısı en uzun olanı seç (genellikle en yüksek çözünürlüklü olan uzun URL'ye sahiptir)
       validImageLinks.sort((a, b) => a.length - b.length);
       imageUrl = decodeHtml(validImageLinks[validImageLinks.length - 1]);
     }
-    // ==========================================
     
     let detailRaw = title;
     let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
@@ -170,7 +160,15 @@ export default async function handler(req, res) {
 
   const fetchPromises = FEEDS.map(async (f) => {
     try {
-      const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
+      const r = await fetch(f.url, { 
+        signal: AbortSignal.timeout(5500),
+        // 🥸 İŞTE SAHTE BIYIK VE GÖZLÜK BURADA! Bloomberg artık bizi Chrome tarayıcısı kullanan bir insan sanacak.
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+        }
+      });
       if (!r.ok) return [];
       return parseItems(await r.text(), f.label, f.url);
     } catch(e) { return []; }
