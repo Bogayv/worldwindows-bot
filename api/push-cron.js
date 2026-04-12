@@ -39,35 +39,48 @@ async function redisGet(url, token, key) {
   return data.result ?? null;
 }
 
-function parseItems(xml, label) {
+// YENİ: feedUrl parametresi eklendi ki yarım linkleri kaynağın adresiyle tamamlayabilelim
+function parseItems(xml, label, feedUrl) {
   const items = [];
   const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
+
+  // Kaynağın kök domainini (Örn: https://www.bloomberght.com) bul
+  let baseDomain = "";
+  try {
+    const urlObj = new URL(feedUrl);
+    baseDomain = urlObj.protocol + "//" + urlObj.hostname;
+  } catch(e) {
+    const parts = feedUrl.split('/');
+    baseDomain = parts[0] + "//" + parts[2];
+  }
   
   for (let i = 0; i < Math.min(blocks.length, 3); i++) {
     const block = blocks[i];
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
-    const linkRaw = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
     
-    let link = linkRaw;
-    if (!link || (!link.startsWith("http") && !link.startsWith("www") && !link.includes(".com"))) {
+    let link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    if (!link) {
       link = ((block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
     }
 
-    // --- MEGA LİNK TEMİZLEYİCİ (BLOOMBERG HT 404 ÇÖZÜMÜ) ---
-    // 1. BloombergHT bazen "www" olmadan çıplak link gönderiyor ve sunucusu bunu çözemeyip çöküyor.
+    // --- KESİN 404 ÇÖZÜMÜ: YARIM (RELATIVE) LİNK TAMAMLAYICI ---
+    if (link.startsWith("/")) {
+      // Eğer link "/haber/..." diye başlıyorsa, başına kaynak sitenin adresini koy
+      link = baseDomain + link;
+    } else if (!link.startsWith("http")) {
+      if (link.startsWith("www.") || link.includes(".com") || link.includes(".net") || link.includes(".tr")) {
+        link = "https://" + link.replace(/^www\./, "");
+      } else {
+        link = baseDomain + "/" + link;
+      }
+    }
+
     if (link.includes("bloomberght.com") && !link.includes("www.bloomberght.com")) {
       link = link.replace("bloomberght.com", "www.bloomberght.com");
     }
-    // 2. Güvenlik için http'leri https yap
     link = link.replace(/^http:\/\//i, "https://");
-    // 3. Sadece www. veya site adıyla başlıyorsa (http yoksa) başına https:// ekle
-    if (!link.startsWith("https://") && (link.startsWith("www.") || link.includes(".com"))) {
-      link = "https://" + link;
-    }
-    // 4. Son kontrol: Eğer hala geçerli bir link değilse ölü link (#) atama
-    if (!link.startsWith("http")) link = "#";
 
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
@@ -130,7 +143,7 @@ export default async function handler(req, res) {
   const fetchPromises = FEEDS.map(async (f) => {
     try {
       const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
-      return parseItems(await r.text(), f.label);
+      return parseItems(await r.text(), f.label, f.url); // f.url EKLENDİ
     } catch(e) { return []; }
   });
 
