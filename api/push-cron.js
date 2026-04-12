@@ -19,13 +19,27 @@ async function sendPush(newsItem) {
   return res.ok;
 }
 
-async function redisOps(url, token, cmd, key, val = null, ex = null) {
-  let finalUrl = `${url}/${cmd}/${encodeURIComponent(key)}`;
-  if (val) finalUrl += `/${encodeURIComponent(val)}`;
-  if (ex) finalUrl += `/EX/${ex}`;
-  const res = await fetch(finalUrl, { method: val ? "POST" : "GET", headers: { Authorization: `Bearer ${token}` } });
+// ÇÖZÜM BURADA: Devasa havuzu URL'ye değil, Request Body (Gövde) içine koyarak yolluyoruz.
+async function redisSetPool(url, token, key, value, ex) {
+  await fetch(`${url}/set/${encodeURIComponent(key)}?EX=${ex}`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(value)
+  });
+}
+
+// Bildirim ID'leri gibi küçük veriler için standart yöntem
+async function redisSetSmall(url, token, key, value) {
+  await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+}
+
+async function redisGet(url, token, key) {
+  const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
   const data = await res.json();
-  return data.result;
+  return data.result ?? null;
 }
 
 function parseItems(xml, label) {
@@ -102,16 +116,16 @@ export default async function handler(req, res) {
 
   const newsPool = rawResults.flat().sort((a,b) => b.timestamp - a.timestamp);
   
-  // MERKEZİ HAVUZU KAYDET (200 Haber)
-  await redisOps(REDIS_URL, REDIS_TOKEN, "set", "ww_global_pool", JSON.stringify(newsPool.slice(0, 200)), 259200);
+  // İŞTE DÜZELTİLEN KISIM! Havuzu güvenli POST ile kaydediyoruz.
+  await redisSetPool(REDIS_URL, REDIS_TOKEN, "ww_global_pool", JSON.stringify(newsPool.slice(0, 200)), 259200);
 
   let pushed = 0;
   for (const item of newsPool.slice(0, 10)) {
-    const isSent = await redisOps(REDIS_URL, REDIS_TOKEN, "get", `sent_${item.id}`);
+    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
     if (isSent === "true") continue;
     
     if (await sendPush(item)) {
-      await redisOps(REDIS_URL, REDIS_TOKEN, "set", `sent_${item.id}`, "true", 259200);
+      await redisSetSmall(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
       pushed++;
       await new Promise(r => setTimeout(r, 4000));
     }
