@@ -1,50 +1,42 @@
+async function upstashCmd(url, token, cmdArray) {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(cmdArray)
+    });
+    const data = await res.json();
+    return data.result;
+  } catch(e) { return null; }
+}
+
 async function sendPush(newsItem) {
   const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
   if (!REST_KEY) return false;
-  const res = await fetch("https://onesignal.com/api/v1/notifications", {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
-    body: JSON.stringify({
-      app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
-      included_segments: ["All"],
-      headings: { en: `🌍 ${newsItem.kaynak}` },
-      contents: { en: newsItem.baslik.slice(0, 200) },
-      url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
-      chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
-      web_push_topic: newsItem.id,
-      android_group: newsItem.id,
-      collapse_id: newsItem.id
-    })
-  });
-  return res.ok;
+  try {
+    const res = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8", "Authorization": `Basic ${REST_KEY}` },
+      body: JSON.stringify({
+        app_id: "4c3d1977-4ffa-4227-8665-758fe36cce73",
+        included_segments: ["All"],
+        headings: { en: `🌍 ${newsItem.kaynak}` },
+        contents: { en: newsItem.baslik.slice(0, 200) },
+        url: `https://www.worldwindows.network/?newsId=${newsItem.id}`,
+        chrome_web_icon: "https://www.worldwindows.network/logo.jpeg",
+        web_push_topic: newsItem.id,
+        android_group: newsItem.id,
+        collapse_id: newsItem.id
+      })
+    });
+    return res.ok;
+  } catch(e) { return false; }
 }
 
-async function redisSetPool(url, token, key, valueArray, ex) {
-  await fetch(`${url}/set/${encodeURIComponent(key)}?EX=${ex}`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(valueArray)
-  });
-}
-
-async function redisSetSmall(url, token, key, value) {
-  await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
-    method: "POST", headers: { "Authorization": `Bearer ${token}` }
-  });
-}
-
-async function redisGet(url, token, key) {
-  const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  return data.result ?? null;
-}
-
-// YENİ: feedUrl parametresi eklendi ki yarım linkleri kaynağın adresiyle tamamlayabilelim
 function parseItems(xml, label, feedUrl) {
   const items = [];
   const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
 
-  // Kaynağın kök domainini (Örn: https://www.bloomberght.com) bul
   let baseDomain = "";
   try {
     const urlObj = new URL(feedUrl);
@@ -54,7 +46,7 @@ function parseItems(xml, label, feedUrl) {
     baseDomain = parts[0] + "//" + parts[2];
   }
   
-  for (let i = 0; i < Math.min(blocks.length, 3); i++) {
+  for (let i = 0; i < Math.min(blocks.length, 5); i++) {
     const block = blocks[i];
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
@@ -65,9 +57,7 @@ function parseItems(xml, label, feedUrl) {
       link = ((block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
     }
 
-    // --- KESİN 404 ÇÖZÜMÜ: YARIM (RELATIVE) LİNK TAMAMLAYICI ---
     if (link.startsWith("/")) {
-      // Eğer link "/haber/..." diye başlıyorsa, başına kaynak sitenin adresini koy
       link = baseDomain + link;
     } else if (!link.startsWith("http")) {
       if (link.startsWith("www.") || link.includes(".com") || link.includes(".net") || link.includes(".tr")) {
@@ -140,30 +130,56 @@ export default async function handler(req, res) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
+  // 1. ESKİ HAVUZU GÜVENLE OKU
+  let oldPool = [];
+  const oldRaw = await upstashCmd(REDIS_URL, REDIS_TOKEN, ["GET", "ww_global_pool"]);
+  if (oldRaw) {
+    try {
+      let temp = typeof oldRaw === "string" ? JSON.parse(oldRaw) : oldRaw;
+      oldPool = typeof temp === "string" ? JSON.parse(temp) : temp;
+      if (!Array.isArray(oldPool)) oldPool = [];
+    } catch(e) { oldPool = []; }
+  }
+
+  // 2. YENİ HABERLERİ ÇEK
   const fetchPromises = FEEDS.map(async (f) => {
     try {
       const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
-      return parseItems(await r.text(), f.label, f.url); // f.url EKLENDİ
+      if (!r.ok) return [];
+      return parseItems(await r.text(), f.label, f.url);
     } catch(e) { return []; }
   });
-
   const rawResults = await Promise.all(fetchPromises);
-  const newsPool = rawResults.flat().sort((a,b) => b.timestamp - a.timestamp);
-  
-  await redisSetPool(REDIS_URL, REDIS_TOKEN, "ww_global_pool", newsPool.slice(0, 200), 259200);
+  const freshItems = rawResults.flat();
 
+  // 3. HAVUZLARI BİRLEŞTİR VE ZAMANA GÖRE DİZ (600 Habere Kadar)
+  const combinedMap = new Map();
+  oldPool.forEach(item => combinedMap.set(item.id, item));
+  freshItems.forEach(item => combinedMap.set(item.id, item));
+  
+  const finalPool = Array.from(combinedMap.values())
+    .sort((a,b) => b.timestamp - a.timestamp)
+    .slice(0, 600);
+
+  // 4. BİRLEŞMİŞ HAVUZU ÇÖKMEYECEK ŞEKİLDE KAYDET (3 Günlük Süre = 259200 sn)
+  await upstashCmd(REDIS_URL, REDIS_TOKEN, ["SET", "ww_global_pool", JSON.stringify(finalPool), "EX", 259200]);
+
+  // 5. BİLDİRİMLERİ SADECE YENİ DÜŞEN HABERLERDEN AT
   let pushed = 0;
-  for (const item of newsPool.slice(0, 15)) {
+  const newestFreshItems = freshItems.sort((a,b) => b.timestamp - a.timestamp);
+  
+  for (const item of newestFreshItems.slice(0, 15)) {
     if (pushed >= 10) break;
-    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
+    const isSent = await upstashCmd(REDIS_URL, REDIS_TOKEN, ["GET", `sent_${item.id}`]);
     if (isSent === "true") continue;
     
-    if (await sendPush(item)) {
-      await redisSetSmall(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
+    const pushOk = await sendPush(item);
+    if (pushOk) {
+      await upstashCmd(REDIS_URL, REDIS_TOKEN, ["SET", `sent_${item.id}`, "true", "EX", 259200]);
       pushed++;
       await new Promise(r => setTimeout(r, 4000));
     }
   }
 
-  return res.status(200).json({ ok: true, pool: newsPool.length, pushed });
+  return res.status(200).json({ ok: true, poolSize: finalPool.length, pushed });
 }
