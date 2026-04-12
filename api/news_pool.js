@@ -1,4 +1,9 @@
 export default async function handler(req, res) {
+  // VERCEL'İN ESKİ VERİ GÖSTERMESİNİ (CACHE) KESİN OLARAK YASAKLIYORUZ
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/"/g,"").trim();
   const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/"/g,"").trim();
   try {
