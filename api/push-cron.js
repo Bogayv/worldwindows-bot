@@ -1,16 +1,3 @@
-async function redisGet(url, token, key) {
-  const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  return data.result ?? null;
-}
-
-async function redisSet(url, token, key, value) {
-  await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` }
-  });
-}
-
 async function sendPush(newsItem) {
   const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
   if (!REST_KEY) return false;
@@ -32,17 +19,39 @@ async function sendPush(newsItem) {
   return res.ok;
 }
 
+// Havuzu güvenle POST body içinde kaydeden fonksiyon (Çökme korumalı)
+async function redisSetPool(url, token, key, valueArray, ex) {
+  await fetch(`${url}/set/${encodeURIComponent(key)}?EX=${ex}`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(valueArray)
+  });
+}
+
+async function redisSetSmall(url, token, key, value) {
+  await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
+    method: "POST", headers: { "Authorization": `Bearer ${token}` }
+  });
+}
+
+async function redisGet(url, token, key) {
+  const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  return data.result ?? null;
+}
+
 function parseItems(xml, label) {
   const items = [];
   const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
-
+  
+  // KÖR NOKTA ÇÖZÜMÜ: Sadece ilk habere değil, ilk 3 habere bakıyor
   for (let i = 0; i < Math.min(blocks.length, 3); i++) {
     const block = blocks[i];
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
     const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
-
+    
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
     if (pubDateRaw) {
@@ -50,9 +59,15 @@ function parseItems(xml, label) {
       const parsed = Date.parse(cleanDate);
       if (!isNaN(parsed)) { timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed; }
     }
-
+    
     const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
-    items.push({ id, baslik: title, url: link, kaynak: label, timestamp });
+    let imageUrl = block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] || block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || "https://worldwindows.network/logo.jpeg";
+    
+    let detail = title;
+    let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
+    if (descMatch && descMatch[1]) detail = descMatch[1].replace(/<[^>]*>?/gm, '').trim();
+
+    items.push({ id, baslik: title, detay: detail, kaynak: label, url: link, img: imageUrl, timestamp });
   }
   return items;
 }
@@ -95,32 +110,31 @@ export default async function handler(req, res) {
     { url: "https://tr.investing.com/rss/news_301.rss", label: "Investing TR" }
   ];
 
-  const fetchPromises = FEEDS.map(async (feed) => {
+  const fetchPromises = FEEDS.map(async (f) => {
     try {
-      const response = await fetch(feed.url, { signal: AbortSignal.timeout(5000) }).catch(() => null);
-      if (!response || !response.ok) return [];
-      return parseItems(await response.text(), feed.label);
+      const r = await fetch(f.url, { signal: AbortSignal.timeout(4500) });
+      return parseItems(await r.text(), f.label);
     } catch(e) { return []; }
   });
 
   const rawResults = await Promise.all(fetchPromises);
-  const validItems = rawResults.flat().filter(item => item !== null);
-  validItems.sort((a, b) => b.timestamp - a.timestamp);
+  const newsPool = rawResults.flat().sort((a,b) => b.timestamp - a.timestamp);
+  
+  // Havuzu Doldur
+  await redisSetPool(REDIS_URL, REDIS_TOKEN, "ww_global_pool", newsPool.slice(0, 200), 259200);
 
-  let pushedCount = 0;
-  for (const item of validItems) {
-    if (pushedCount >= 10) break;
-    const cacheKey = `sent_${item.id}`;
-    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, cacheKey);
+  let pushed = 0;
+  for (const item of newsPool.slice(0, 15)) {
+    if (pushed >= 10) break;
+    const isSent = await redisGet(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`);
     if (isSent === "true") continue;
-
-    const ok = await sendPush(item);
-    if (ok) {
-      await redisSet(REDIS_URL, REDIS_TOKEN, cacheKey, "true");
-      pushedCount++;
+    
+    if (await sendPush(item)) {
+      await redisSetSmall(REDIS_URL, REDIS_TOKEN, `sent_${item.id}`, "true");
+      pushed++;
       await new Promise(r => setTimeout(r, 4000));
     }
   }
 
-  return res.status(200).json({ ok: true, count: pushedCount });
+  return res.status(200).json({ ok: true, pool: newsPool.length, pushed });
 }

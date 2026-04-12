@@ -3,18 +3,18 @@ import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider, useTheme } from "next-themes";
 
 const GLOBAL_TAGS = [
-  { id: "all", label: "ALL", urls: [] },
-  { id: "trump", label: "TRUMP", urls: ["https://www.reutersagency.com/feed/", "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "https://www.politico.com/rss/politicopicks.xml"]},
-  { id: "war", label: "WAR", urls: ["https://www.aljazeera.com/xml/rss/all.xml", "https://www.theguardian.com/world/rss", "http://feeds.bbci.co.uk/news/world/rss.xml"]},
-  { id: "ekonomi", label: "ECONOMY", urls: ["https://www.ft.com/?format=rss", "https://www.economist.com/sections/economics/rss.xml", "https://www.wsj.com/xml/rss/3_7014.xml", "https://www.forbes.com/economics/feed/"]},
-  { id: "finans", label: "FINANCE", urls: ["https://www.wsj.com/xml/rss/3_7031.xml", "https://www.cnbc.com/id/10000664/device/rss/rss.html", "https://feeds.barrons.com/v1/barrons/rss?xml=1", "https://www.ft.com/markets?format=rss"]},
-  { id: "kripto", label: "CRYPTO", urls: ["https://cointelegraph.com/rss", "https://www.coindesk.com/arc/outboundfeeds/rss/"]},
-  { id: "asya", label: "ASIA PACIFIC", urls: ["https://www.scmp.com/rss/4/feed", "https://asia.nikkei.com/rss/feed/category/53", "https://en.yna.co.kr/RSS/news.xml"]},
-  { id: "jeopolitik", label: "GEOPOLITICS", urls: ["https://tr.euronews.com/rss?level=vertical&type=all", "https://www.france24.com/en/rss", "https://www.foreignaffairs.com/rss.xml", "https://rss.dw.com/rdf/rss-en-all", "https://www.theguardian.com/world/rss", "https://www.aljazeera.com/xml/rss/all.xml"]},
-  { id: "siyaset", label: "POLITICS", urls: ["https://www.sozcu.com.tr/feeds-son-dakika", "https://www.politico.com/rss/politicopicks.xml", "https://www.theguardian.com/politics/rss", "https://www.abc.net.au/news/feed/45910/rss.xml"]},
-  { id: "gold", label: "GOLD", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/news_95.rss"]},
-  { id: "silver", label: "SILVER", urls: ["https://www.kitco.com/rss/index.xml", "https://www.investing.com/rss/market_overview_287.rss"]},
-  { id: "borsa", label: "MARKETS", urls: ["https://www.bloomberght.com/rss", "https://gazeteoksijen.com/rss", "https://www.paraanaliz.com/feed/", "https://www.ntv.com.tr/ekonomi.rss", "https://www.borsagundem.com.tr/rss", "https://www.ekonomim.com/rss", "https://tr.investing.com/rss/news_301.rss", "https://www.hisse.net/haber/?feed=rss2"]},
+  { id: "all", label: "ALL" },
+  { id: "trump", label: "TRUMP" },
+  { id: "war", label: "WAR" },
+  { id: "ekonomi", label: "ECONOMY" },
+  { id: "finans", label: "FINANCE" },
+  { id: "kripto", label: "CRYPTO" },
+  { id: "asya", label: "ASIA PACIFIC" },
+  { id: "jeopolitik", label: "GEOPOLITICS" },
+  { id: "siyaset", label: "POLITICS" },
+  { id: "gold", label: "GOLD" },
+  { id: "silver", label: "SILVER" },
+  { id: "borsa", label: "MARKETS" },
 ];
 
 const SOURCE_LINKS = [
@@ -87,12 +87,6 @@ const TradingViewLiveTicker = memo(() => {
   return <div style={{ background: "#000", borderBottom: "1px solid #1e2d4a", minHeight: "46px", marginTop: "45px" }} ref={container}></div>;
 });
 
-let persistentTimeCache = {};
-try {
-  const saved = localStorage.getItem('ww_news_timer_final');
-  if (saved) persistentTimeCache = JSON.parse(saved);
-} catch (e) {}
-
 export default function GlobalHaberler() {
   const [newsPool, setNewsPool] = useState([]);
   const [selectedNews, setSelectedNews] = useState(null);
@@ -106,9 +100,6 @@ export default function GlobalHaberler() {
   const [subEmail, setSubEmail] = useState("");
   const [subStatus, setSubStatus] = useState("");
   const [pushStatus, setPushStatus] = useState("");
-
-  const activeTagRef = useRef(activeTag);
-  useEffect(() => { activeTagRef.current = activeTag; }, [activeTag]);
 
   useEffect(() => {
     if (!document.querySelector('script[id="onesignal-script"]')) {
@@ -193,56 +184,17 @@ export default function GlobalHaberler() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => { fetchCollectiveNews(); setTimeLeft(60); }, [activeTag]);
+  useEffect(() => { fetchCollectiveNews(); setTimeLeft(60); }, []);
 
-  // ORİJİNAL VERİ ÇEKME FONKSİYONU (EKSİKSİZ, HABER DETAYLARIYLA)
+  // IŞIK HIZI BURADA: Veriyi doğrudan Cron-Job havuzundan çekiyor
   async function fetchCollectiveNews() {
     setIsUpdating(true);
     try {
-      const currentTag = activeTagRef.current;
-      const ALL_URLS = Array.from(new Set(GLOBAL_TAGS.flatMap(tag => tag.urls)));
-      const targetUrls = currentTag.id === "all" ? ALL_URLS : currentTag.urls;
-      const fetchPromises = targetUrls.map(async (url) => {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 6000);
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&_t=${Date.now()}_${Math.random()}`;
-          const res = await fetch(proxyUrl, {
-            signal: controller.signal,
-            cache: 'no-store',
-            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
-          });
-          clearTimeout(timeoutId);
-          if (!res.ok) return [];
-          const xmlText = await res.text();
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-          const items = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 15);
-          const feedTitle = xmlDoc.querySelector("channel > title, feed > title")?.textContent || "Global";
-          const fetchTime = Date.now();
-          return items.map((item, index) => {
-            const title = item.querySelector("title")?.textContent || "News";
-            const newsId = btoa(unescape(encodeURIComponent(title.slice(0,50)))).replace(/[^a-zA-Z0-9]/g, "").slice(0,24);
-            let pubDateNode = item.querySelector("pubDate") || item.querySelector("updated") || item.getElementsByTagName("dc:date")[0];
-            let newsTime = null;
-            if (pubDateNode && pubDateNode.textContent) { const parsedTime = Date.parse(pubDateNode.textContent); if (!isNaN(parsedTime)) newsTime = parsedTime; }
-            if (!newsTime) newsTime = persistentTimeCache[newsId] || (fetchTime - (index * 1000));
-            let imageUrl = item.querySelector("enclosure")?.getAttribute("url") || item.querySelector("media\\:content, content")?.getAttribute("url") || "";
-            if (!imageUrl) { const desc = item.querySelector("description")?.textContent || ""; const match = desc.match(/<img[^>]+src="([^">]+)"/); if (match) imageUrl = match[1]; }
-            if (!imageUrl || !imageUrl.startsWith("http")) imageUrl = "https://worldwindows.network/logo.jpeg";
-            if (!persistentTimeCache[newsId]) { persistentTimeCache[newsId] = newsTime; localStorage.setItem('ww_news_timer_final', JSON.stringify(persistentTimeCache)); }
-            return { id: newsId, baslik: title, detay: (item.querySelector("description")?.textContent || "").replace(/<[^>]*>?/gm, ''), kaynak: feedTitle.replace(/ - BBC News| \| World/gi, ''), url: (item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "#").trim(), img: imageUrl, tagId: currentTag.id, timestamp: persistentTimeCache[newsId] };
-          });
-        } catch (e) { return []; }
-      });
-      const results = await Promise.all(fetchPromises);
-      const newFetchedItems = results.flat();
-      setNewsPool(prevPool => {
-        const combined = [...newFetchedItems, ...prevPool];
-        const uniqueMap = new Map();
-        combined.forEach(item => { if (!uniqueMap.has(item.id)) uniqueMap.set(item.id, item); });
-        return Array.from(uniqueMap.values()).sort((a, b) => b.timestamp - a.timestamp).slice(0, 800);
-      });
+      const res = await fetch('/api/news_pool?_t=' + Date.now());
+      if (res.ok) {
+        const data = await res.json();
+        if (data.news && data.news.length > 0) setNewsPool(data.news);
+      }
     } catch (e) {
     } finally {
       setTimeout(() => setIsUpdating(false), 800);
@@ -250,9 +202,27 @@ export default function GlobalHaberler() {
   }
 
   const displayData = useMemo(() => {
-    let filtered = activeTag.id === "all" ? newsPool : newsPool.filter(i => i.tagId === activeTag.id);
+    let filtered = newsPool;
+    if (activeTag.id !== "all") {
+      const tagMap = {
+        trump: ["trump", "politics", "washington", "republican"],
+        war: ["war", "conflict", "israel", "gaza", "ukraine", "russia", "military"],
+        ekonomi: ["economy", "fed", "inflation", "rate", "gdp"],
+        finans: ["finance", "bank", "market", "wall street", "stock"],
+        kripto: ["crypto", "bitcoin", "ethereum", "blockchain", "sec"],
+        asya: ["asia", "china", "japan", "korea", "taiwan"],
+        jeopolitik: ["geopolitic", "world", "global", "eu", "nato", "un"],
+        siyaset: ["politics", "election", "vote", "government"],
+        gold: ["gold", "xau", "precious"],
+        silver: ["silver", "xag", "precious"],
+        borsa: ["borsa", "bist", "nasdaq", "s&p"]
+      };
+      const keywords = tagMap[activeTag.id] || [activeTag.id];
+      filtered = filtered.filter(n => keywords.some(k => n.baslik.toLowerCase().includes(k) || (n.detay && n.detay.toLowerCase().includes(k)) || n.kaynak.toLowerCase().includes(k)));
+    }
     if (timeFilter > 0) filtered = filtered.filter(item => (Date.now() - item.timestamp) <= timeFilter * 60000);
     if (searchTerm.trim() !== "") filtered = filtered.filter(i => i.baslik.toLowerCase().includes(searchTerm.toLowerCase()));
+    
     const radar = []; const sourceCount = {};
     for (const item of filtered) {
       if (radar.length >= 40) break;
@@ -312,9 +282,7 @@ export default function GlobalHaberler() {
     if (!("Notification" in window)) { setPushStatus("unsupported"); return; }
     if (Notification.permission === "granted") {
       if (window.OneSignalDeferred) {
-        window.OneSignalDeferred.push(async (OneSignal) => {
-          try { await OneSignal.User.PushSubscription.optIn(); } catch(e) {}
-        });
+        window.OneSignalDeferred.push(async (OneSignal) => { try { await OneSignal.User.PushSubscription.optIn(); } catch(e) {} });
       }
       setPushStatus("already_granted");
       return;
@@ -323,9 +291,7 @@ export default function GlobalHaberler() {
     Notification.requestPermission().then((permission) => {
       if (permission === "granted") {
         if (window.OneSignalDeferred) {
-          window.OneSignalDeferred.push(async (OneSignal) => {
-            try { await OneSignal.User.PushSubscription.optIn(); } catch(e) {}
-          });
+          window.OneSignalDeferred.push(async (OneSignal) => { try { await OneSignal.User.PushSubscription.optIn(); } catch(e) {} });
         }
         setPushStatus("granted");
       } else { setPushStatus("denied"); }
@@ -446,6 +412,11 @@ export default function GlobalHaberler() {
           <div style={{fontFamily:"'Dancing Script'", fontSize:"24px", color:"#c9a96e", fontWeight:"700"}}>Are you ready to discover the world...</div>
         </div>
         <div className="tag-bar">{GLOBAL_TAGS.map(t => (<div key={t.id} className={`tag-pill ${activeTag.id === t.id ? 'active' : ''}`} onClick={() => setActiveTag(t)}>#{t.label}</div>))}</div>
+        
+        {displayData.radar.length === 0 && !isUpdating && (
+          <div style={{textAlign: 'center', padding: '50px', color: '#8a9ab0'}}>News pool is syncing, please wait...</div>
+        )}
+
         <div className="radar-container">
           {displayData.radar.map(n => (
             <div key={n.id} className="news-card" onClick={() => openModalWithLink(n)}>
