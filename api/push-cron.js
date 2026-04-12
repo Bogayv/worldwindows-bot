@@ -19,7 +19,6 @@ async function sendPush(newsItem) {
   return res.ok;
 }
 
-// Havuzu güvenle POST body içinde kaydeden fonksiyon (Çökme korumalı)
 async function redisSetPool(url, token, key, valueArray, ex) {
   await fetch(`${url}/set/${encodeURIComponent(key)}?EX=${ex}`, {
     method: "POST",
@@ -44,14 +43,25 @@ function parseItems(xml, label) {
   const items = [];
   const blocks = xml.match(/<(item|entry)>[\s\S]*?<\/\1>/gi) || [];
   
-  // KÖR NOKTA ÇÖZÜMÜ: Sadece ilk habere değil, ilk 3 habere bakıyor
   for (let i = 0; i < Math.min(blocks.length, 3); i++) {
     const block = blocks[i];
+    
+    // Başlık
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
-    const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
     
+    // 🔗 404 ÇÖZÜMÜ: Link Temizleyici (URL Sanitizer)
+    let link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    if (!link || (!link.startsWith("http") && !link.startsWith("www"))) {
+      link = ((block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
+    }
+    // Eğer link sadece www ile başlıyorsa, başına https:// ekle ki browser hata yapmasın
+    if (link.startsWith("www.")) link = "https://" + link;
+    // Eğer hiçbir şeyle eşleşmiyorsa ölü link atama (# ver)
+    if (!link.startsWith("http")) link = "#";
+
+    // Tarih
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
     if (pubDateRaw) {
@@ -60,9 +70,11 @@ function parseItems(xml, label) {
       if (!isNaN(parsed)) { timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed; }
     }
     
+    // ID & Görsel
     const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
     let imageUrl = block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] || block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || "https://worldwindows.network/logo.jpeg";
     
+    // Detay
     let detail = title;
     let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
     if (descMatch && descMatch[1]) detail = descMatch[1].replace(/<[^>]*>?/gm, '').trim();
@@ -120,7 +132,6 @@ export default async function handler(req, res) {
   const rawResults = await Promise.all(fetchPromises);
   const newsPool = rawResults.flat().sort((a,b) => b.timestamp - a.timestamp);
   
-  // Havuzu Doldur
   await redisSetPool(REDIS_URL, REDIS_TOKEN, "ww_global_pool", newsPool.slice(0, 200), 259200);
 
   let pushed = 0;
