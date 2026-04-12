@@ -85,6 +85,9 @@ function parseItems(xml, label, feedUrl) {
     
     const id = Buffer.from((feedUrl.slice(0,15) + title.slice(0,30)).replace(/\s/g,'')).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0, 28);
     
+    // ==========================================
+    // 📸 GÖRSEL AVCISI VE BLOOMBERG KALKANI
+    // ==========================================
     let imageUrl = "https://worldwindows.network/logo.jpeg";
     const rawText = block + " " + decodeHtml(block); 
     const allPossibleLinks = rawText.match(/https?:\/\/[^\s"\'<>\[\]]+/gi) || [];
@@ -99,6 +102,12 @@ function parseItems(xml, label, feedUrl) {
       validImageLinks.sort((a, b) => a.length - b.length);
       imageUrl = decodeHtml(validImageLinks[validImageLinks.length - 1]);
     }
+    
+    // 🛡️ KESİN ÇÖZÜM: BLOOMBERG İÇİN ZORUNLU LOGO
+    if (label === "Bloomberg HT") {
+        imageUrl = "https://worldwindows.network/logo.jpeg";
+    }
+    // ==========================================
     
     let detailRaw = title;
     let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
@@ -162,7 +171,6 @@ export default async function handler(req, res) {
     try {
       const r = await fetch(f.url, { 
         signal: AbortSignal.timeout(5500),
-        // 🥸 İŞTE SAHTE BIYIK VE GÖZLÜK BURADA! Bloomberg artık bizi Chrome tarayıcısı kullanan bir insan sanacak.
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
