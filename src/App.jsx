@@ -184,6 +184,7 @@ export default function GlobalHaberler() {
     return () => clearInterval(timer);
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchCollectiveNews(); setTimeLeft(60); }, []);
 
   // IŞIK HIZI BURADA: Veriyi doğrudan Cron-Job havuzundan çekiyor

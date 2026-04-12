@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // VERCEL'İN ESKİ VERİ GÖSTERMESİNİ (CACHE) KESİN OLARAK YASAKLIYORUZ
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -16,8 +15,11 @@ export default async function handler(req, res) {
     
     let parsed = [];
     if (data.result) {
-        let temp = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
-        parsed = typeof temp === "string" ? JSON.parse(temp) : temp;
+        // ✅ 5. KUSURSUZ ÇÖZÜM: Güvenli Parse (Tek veya Çift stringify durumunu tolere eder)
+        try {
+            let temp = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
+            parsed = typeof temp === "string" ? JSON.parse(temp) : temp;
+        } catch(e) { parsed = []; }
     }
     
     if (!Array.isArray(parsed)) parsed = [];
