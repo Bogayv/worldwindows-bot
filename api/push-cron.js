@@ -86,29 +86,35 @@ function parseItems(xml, label, feedUrl) {
     const id = Buffer.from((feedUrl.slice(0,15) + title.slice(0,30)).replace(/\s/g,'')).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0, 28);
     
     // ==========================================
-    // 📸 HİPER-AGRESİF GÖRSEL AVCISI (AL JAZEERA ÖZEL)
+    // 📸 BALYOZ GÖRSEL AVCISI (AL JAZEERA ŞİFRE ÇÖZÜCÜ)
     // ==========================================
     let imageUrl = "https://worldwindows.network/logo.jpeg";
     const imgUrls = [];
     
-    // 1. media:content, media:thumbnail, enclosure veya media:group içindeki tüm URL'leri topla
-    const mediaRegex = /(?:media:content|enclosure|media:thumbnail|media:group)[\s\S]*?url=["']([^"']+)["']/gi;
-    let m;
-    while ((m = mediaRegex.exec(block)) !== null) { imgUrls.push(m[1]); }
+    // 1. Şifrelenmiş olabilecek TÜM bloğun kilidini açıyoruz! (Al Jazeera için can damarı)
+    const decodedBlock = decodeHtml(block);
     
-    // 2. Metin (Description) içindeki <img> etiketlerini tara
-    const descImg = block.match(/<img[^>]+src=["']([^"']+)["']/i);
-    if (descImg) imgUrls.push(descImg[1]);
-
-    // 3. EĞER HALA BULAMADIYSA: Blok içinde http ile başlayıp resim uzantısıyla biten her şeyi tara
-    if (imgUrls.length === 0) {
-      const deepSearch = block.match(/https?:\/\/[^"'\s<>]+?\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"'\s<>]*)?/gi);
-      if (deepSearch) imgUrls.push(...deepSearch);
+    // 2. Kilidi açılmış blokta her türlü medya etiketini tara
+    const mediaRegex = /(?:media:content|enclosure|media:thumbnail|media:group)[\s\S]*?(?:url|href)=["']([^"']+)["']/gi;
+    let m;
+    while ((m = mediaRegex.exec(decodedBlock)) !== null) { imgUrls.push(m[1]); }
+    
+    // 3. Kilidi açılmış blokta gizli <img> etiketlerini tara
+    const descImg = decodedBlock.match(/<img[^>]+src=["']([^"']+)["']/gi);
+    if (descImg) {
+      descImg.forEach(imgTag => {
+        const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+        if (srcMatch) imgUrls.push(srcMatch[1]);
+      });
     }
 
-    const validUrls = imgUrls.filter(u => u && u.startsWith("http") && !u.includes("logo") && !u.includes("icon"));
+    // 4. CDATA veya ham metin içine fırlatılmış URL'leri bul
+    const deepSearch = decodedBlock.match(/https?:\/\/[^"'\s<>]+?\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"'\s<>]*)?/gi);
+    if (deepSearch) imgUrls.push(...deepSearch);
+
+    // 5. İçinde logo, avatar vs geçen çöp resimleri ele ve en sonrakini (en kalitelisini) seç
+    const validUrls = imgUrls.filter(u => u && u.startsWith("http") && !u.includes("logo") && !u.includes("icon") && !u.includes("avatar"));
     if (validUrls.length > 0) {
-      // En kaliteli resim genellikle en büyük olandır (genelde listenin sonundadır)
       imageUrl = decodeHtml(validUrls[validUrls.length - 1]);
     }
     // ==========================================
