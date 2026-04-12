@@ -19,20 +19,18 @@ async function sendPush(newsItem) {
   return res.ok;
 }
 
-// ÇÖZÜM BURADA: Devasa havuzu URL'ye değil, Request Body (Gövde) içine koyarak yolluyoruz.
-async function redisSetPool(url, token, key, value, ex) {
+async function redisSetPool(url, token, key, valueArray, ex) {
   await fetch(`${url}/set/${encodeURIComponent(key)}?EX=${ex}`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(value)
+    // ÇİFT METİNLEŞTİRME HATASI BURADA DÜZELTİLDİ
+    body: JSON.stringify(valueArray) 
   });
 }
 
-// Bildirim ID'leri gibi küçük veriler için standart yöntem
 async function redisSetSmall(url, token, key, value) {
   await fetch(`${url}/set/${encodeURIComponent(key)}/${encodeURIComponent(value)}/EX/259200`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}` }
+    method: "POST", headers: { "Authorization": `Bearer ${token}` }
   });
 }
 
@@ -50,20 +48,15 @@ function parseItems(xml, label) {
     const link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "#").trim();
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
-    
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
     if (pubDateRaw) {
       let cleanDate = pubDateRaw.trim().replace(/\s+[A-Z]{3,5}$/i, "");
       const parsed = Date.parse(cleanDate);
-      if (!isNaN(parsed)) {
-        timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed;
-      }
+      if (!isNaN(parsed)) { timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed; }
     }
-
     const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
     let imageUrl = block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] || block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || "https://worldwindows.network/logo.jpeg";
-    
     items.push({ id, baslik: title, detay: title, kaynak: label, url: link, img: imageUrl, timestamp });
   }
   return items;
@@ -116,8 +109,7 @@ export default async function handler(req, res) {
 
   const newsPool = rawResults.flat().sort((a,b) => b.timestamp - a.timestamp);
   
-  // İŞTE DÜZELTİLEN KISIM! Havuzu güvenli POST ile kaydediyoruz.
-  await redisSetPool(REDIS_URL, REDIS_TOKEN, "ww_global_pool", JSON.stringify(newsPool.slice(0, 200)), 259200);
+  await redisSetPool(REDIS_URL, REDIS_TOKEN, "ww_global_pool", newsPool.slice(0, 200), 259200);
 
   let pushed = 0;
   for (const item of newsPool.slice(0, 10)) {

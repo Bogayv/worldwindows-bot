@@ -4,6 +4,19 @@ export default async function handler(req, res) {
   try {
     const r = await fetch(`${REDIS_URL}/get/ww_global_pool`, { headers: { Authorization: `Bearer ${REDIS_TOKEN}` } });
     const data = await r.json();
-    return res.status(200).json({ news: JSON.parse(data.result || "[]") });
-  } catch(e) { return res.status(200).json({ news: [] }); }
+    
+    let parsed = [];
+    if (data.result) {
+        // BEYAZ EKRAN ÇÖZÜMÜ: Çift stringify olmuş veriyi zorla listeye çeviren kalkan
+        let temp = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
+        parsed = typeof temp === "string" ? JSON.parse(temp) : temp;
+    }
+    
+    // Eğer tüm zorlamalara rağmen liste değilse boş liste döndür ki ekran asla çökmesin
+    if (!Array.isArray(parsed)) parsed = [];
+    
+    return res.status(200).json({ news: parsed });
+  } catch(e) {
+    return res.status(200).json({ news: [] });
+  }
 }
