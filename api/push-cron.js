@@ -60,9 +60,8 @@ function parseItems(xml, label, feedUrl) {
     let link = "";
     const linkMatchNormal = block.match(/<link[^>]*>([\s\S]*?)<\/link>/i);
     const linkMatchAtom = block.match(/<link[^>]*href=["']([^"']+)["']/i);
-
-    if (linkMatchNormal && linkMatchNormal[1].trim() && !linkMatchNormal[1].includes("<")) { link = linkMatchNormal[1]; } 
-    else if (linkMatchAtom && linkMatchAtom[1].trim()) { link = linkMatchAtom[1]; }
+    if (linkMatchNormal && linkMatchNormal[1].trim() && !linkMatchNormal[1].includes("<")) link = linkMatchNormal[1];
+    else if (linkMatchAtom && linkMatchAtom[1].trim()) link = linkMatchAtom[1];
     
     link = link.replace(/<!\[CDATA\[|\]\]>/g, "").trim();
 
@@ -87,30 +86,31 @@ function parseItems(xml, label, feedUrl) {
     const id = Buffer.from((feedUrl.slice(0,15) + title.slice(0,30)).replace(/\s/g,'')).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0, 28);
     
     // ==========================================
-    // 📸 KUSURSUZ GÖRSEL ÇIKARICI (YENİ)
+    // 📸 HİPER-AGRESİF GÖRSEL AVCISI (AL JAZEERA ÖZEL)
     // ==========================================
     let imageUrl = "https://worldwindows.network/logo.jpeg";
     const imgUrls = [];
     
-    // 1. Standart RSS medya etiketlerini tara
-    const mediaRegex = /<(?:media:content|enclosure|media:thumbnail)[^>]+(?:url|href)=["']([^"']+)["']/gi;
+    // 1. media:content, media:thumbnail, enclosure veya media:group içindeki tüm URL'leri topla
+    const mediaRegex = /(?:media:content|enclosure|media:thumbnail|media:group)[\s\S]*?url=["']([^"']+)["']/gi;
     let m;
-    while ((m = mediaRegex.exec(block)) !== null) {
-      imgUrls.push(m[1]);
-    }
+    while ((m = mediaRegex.exec(block)) !== null) { imgUrls.push(m[1]); }
     
-    // 2. Metin (Description) içine gizlenmiş HTML img etiketlerini tara (Al Jazeera Çözümü)
+    // 2. Metin (Description) içindeki <img> etiketlerini tara
     const descImg = block.match(/<img[^>]+src=["']([^"']+)["']/i);
     if (descImg) imgUrls.push(descImg[1]);
 
-    // 3. Sadece geçerli http linklerini al ve en yüksek kaliteliyi (genelde en sondaki) seç
-    const validUrls = imgUrls.filter(u => u.startsWith("http"));
-    if (validUrls.length > 0) {
-      imageUrl = validUrls[validUrls.length - 1]; 
+    // 3. EĞER HALA BULAMADIYSA: Blok içinde http ile başlayıp resim uzantısıyla biten her şeyi tara
+    if (imgUrls.length === 0) {
+      const deepSearch = block.match(/https?:\/\/[^"'\s<>]+?\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"'\s<>]*)?/gi);
+      if (deepSearch) imgUrls.push(...deepSearch);
     }
-    
-    // 4. URL içindeki şifreleri çöz (&amp; -> &). (The Guardian Kırık Resim Çözümü)
-    imageUrl = decodeHtml(imageUrl);
+
+    const validUrls = imgUrls.filter(u => u && u.startsWith("http") && !u.includes("logo") && !u.includes("icon"));
+    if (validUrls.length > 0) {
+      // En kaliteli resim genellikle en büyük olandır (genelde listenin sonundadır)
+      imageUrl = decodeHtml(validUrls[validUrls.length - 1]);
+    }
     // ==========================================
     
     let detailRaw = title;
