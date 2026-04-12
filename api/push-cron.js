@@ -45,23 +45,30 @@ function parseItems(xml, label) {
   
   for (let i = 0; i < Math.min(blocks.length, 3); i++) {
     const block = blocks[i];
-    
-    // Başlık
     const titleRaw = ((block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || block.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").trim();
+    const linkRaw = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
     const title = titleRaw.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
     if (!title) continue;
     
-    // 🔗 404 ÇÖZÜMÜ: Link Temizleyici (URL Sanitizer)
-    let link = ((block.match(/<link>([\s\S]*?)<\/link>/i) || block.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
-    if (!link || (!link.startsWith("http") && !link.startsWith("www"))) {
+    let link = linkRaw;
+    if (!link || (!link.startsWith("http") && !link.startsWith("www") && !link.includes(".com"))) {
       link = ((block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i) || [])[1] || "").replace(/<!\[CDATA\[|\]\]>/g, "").trim();
     }
-    // Eğer link sadece www ile başlıyorsa, başına https:// ekle ki browser hata yapmasın
-    if (link.startsWith("www.")) link = "https://" + link;
-    // Eğer hiçbir şeyle eşleşmiyorsa ölü link atama (# ver)
+
+    // --- MEGA LİNK TEMİZLEYİCİ (BLOOMBERG HT 404 ÇÖZÜMÜ) ---
+    // 1. BloombergHT bazen "www" olmadan çıplak link gönderiyor ve sunucusu bunu çözemeyip çöküyor.
+    if (link.includes("bloomberght.com") && !link.includes("www.bloomberght.com")) {
+      link = link.replace("bloomberght.com", "www.bloomberght.com");
+    }
+    // 2. Güvenlik için http'leri https yap
+    link = link.replace(/^http:\/\//i, "https://");
+    // 3. Sadece www. veya site adıyla başlıyorsa (http yoksa) başına https:// ekle
+    if (!link.startsWith("https://") && (link.startsWith("www.") || link.includes(".com"))) {
+      link = "https://" + link;
+    }
+    // 4. Son kontrol: Eğer hala geçerli bir link değilse ölü link (#) atama
     if (!link.startsWith("http")) link = "#";
 
-    // Tarih
     let pubDateRaw = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || block.match(/<updated>([\s\S]*?)<\/updated>/i) || block.match(/<dc:date>([\s\S]*?)<\/dc:date>/i) || [])[1];
     let timestamp = Date.now();
     if (pubDateRaw) {
@@ -70,11 +77,9 @@ function parseItems(xml, label) {
       if (!isNaN(parsed)) { timestamp = parsed > Date.now() ? Date.now() - 3600000 : parsed; }
     }
     
-    // ID & Görsel
     const id = Buffer.from(title.slice(0,20)).toString("base64").replace(/[^a-zA-Z0-9]/g,"").slice(0,24);
     let imageUrl = block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] || block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || "https://worldwindows.network/logo.jpeg";
     
-    // Detay
     let detail = title;
     let descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || block.match(/<description[^>]*>([\s\S]*?)<\/description>/i);
     if (descMatch && descMatch[1]) detail = descMatch[1].replace(/<[^>]*>?/gm, '').trim();
