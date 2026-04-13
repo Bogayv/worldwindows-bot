@@ -2,6 +2,13 @@ import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider, useTheme } from "next-themes";
 
+
+const cleanText = (text) => {
+  if (!text) return "";
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  return doc.documentElement.textContent;
+};
+
 const GLOBAL_TAGS = [
   { id: "all", label: "ALL" },
   { id: "trump", label: "TRUMP" },
@@ -424,8 +431,8 @@ export default function GlobalHaberler() {
               <div className="time-badge notranslate">{getDynamicTime(n.timestamp)}</div>
               <img src={n.img} alt="News" />
               <div style={{ padding: "15px" }}>
-                <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px" }}>{n.kaynak.toUpperCase()}</div>
-                <h3 id={`news-title-${n.id}`} style={{ fontSize: `${fontSize}px`, color: "#e8e6e0", margin: "8px 0 0" }}>{n.baslik}</h3>
+                <div style={{ color: "#c9a96e", fontWeight: "900", fontSize: "10px" }}>{cleanText(n.kaynak).toUpperCase()}</div>
+                <h3 id={`news-title-${n.id}`} style={{ fontSize: `${fontSize}px`, color: "#e8e6e0", margin: "8px 0 0" }}>{cleanText(n.baslik)}</h3>
               </div>
               <button className="share-icon-mini" style={{position:"absolute", bottom:"10px", right:"10px", background:"none", border:"none", cursor:"pointer", color:"#4a6080"}} onClick={(e) => shareNewsGeneral(e, n)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -439,8 +446,8 @@ export default function GlobalHaberler() {
         <div className="archive-grid">
           {displayData.archive.map(n => (
             <div key={n.id} className="archive-card" onClick={() => openModalWithLink(n)}>
-              <div className="time-badge-inline notranslate" style={{ fontSize: "10px", color: "#c9a96e", fontWeight: "900", marginBottom: "8px" }}>{n.kaynak.toUpperCase()} • {getDynamicTime(n.timestamp)}</div>
-              <h4 id={`news-title-${n.id}`} style={{ fontSize: `${fontSize-2}px`, margin: "8px 0 0" }}>{n.baslik}</h4>
+              <div className="time-badge-inline notranslate" style={{ fontSize: "10px", color: "#c9a96e", fontWeight: "900", marginBottom: "8px" }}>{cleanText(n.kaynak).toUpperCase()} • {getDynamicTime(n.timestamp)}</div>
+              <h4 id={`news-title-${n.id}`} style={{ fontSize: `${fontSize-2}px`, margin: "8px 0 0" }}>{cleanText(n.baslik)}</h4>
               <button className="share-icon-mini" style={{ position: "absolute", bottom: "10px", right: "10px", color: "#4a6080", background: "none", border: "none", cursor: "pointer" }} onClick={(e) => shareNewsGeneral(e, n)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
               </button>
@@ -466,8 +473,8 @@ export default function GlobalHaberler() {
             <div className="modal-body">
               <img src={selectedNews.img} className="modal-detail-img" alt="Detail" />
               <div className="shielded-text">
-                <div className="notranslate" style={{ color: "#c9a96e", fontWeight: "bold" }}>{selectedNews.kaynak} • {getDynamicTime(selectedNews.timestamp)}</div>
-                <h2 id={`news-title-${selectedNews.id}`} style={{ color: "#fff", margin: "15px 0", fontSize: `${fontSize+4}px` }}>{selectedNews.baslik}</h2>
+                <div className="notranslate" style={{ color: "#c9a96e", fontWeight: "bold" }}>{cleanText(selectedNews.kaynak)} • {getDynamicTime(selectedNews.timestamp)}</div>
+                <h2 id={`news-title-${selectedNews.id}`} style={{ color: "#fff", margin: "15px 0", fontSize: `${fontSize+4}px` }}>{cleanText(selectedNews.baslik)}</h2>
                 <p style={{ color: "#e8e6e0", lineHeight: "1.6", fontSize: `${fontSize}px` }}>{selectedNews.detay}</p>
               </div>
               <div style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
