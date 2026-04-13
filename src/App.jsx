@@ -231,12 +231,10 @@ export default function GlobalHaberler() {
     if (timeFilter > 0) filtered = filtered.filter(item => (Date.now() - item.timestamp) <= timeFilter * 60000);
     if (searchTerm.trim() !== "") filtered = filtered.filter(i => i.baslik.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const radar = []; const sourceCount = {};
-    for (const item of filtered) {
-      if (radar.length >= 40) break;
-      if (!sourceCount[item.kaynak] || sourceCount[item.kaynak] < 5) { radar.push(item); sourceCount[item.kaynak] = (sourceCount[item.kaynak] || 0) + 1; }
-    }
-    return { radar, archive: filtered.filter(f => !radar.find(r => r.id === f.id)).slice(0, 500) };
+    const radar = filtered.slice(0, 40);
+    const radarIds = new Set(radar.map(r => r.id));
+    const archive = filtered.slice(40);
+    return { radar, archive };
   }, [newsPool, activeTag, searchTerm, timeFilter]);
 
   const getDynamicTime = (ts) => {
